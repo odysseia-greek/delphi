@@ -23,6 +23,11 @@ func CreateNewConfig(env string) (*Config, error) {
 		healthCheck = false
 	}
 
+	http, err := config.CreateOdysseiaClient()
+	if err != nil {
+		return nil, err
+	}
+
 	vault, err := diogenes.CreateVaultClient(env, healthCheck)
 	if err != nil {
 		return nil, err
@@ -33,10 +38,6 @@ func CreateNewConfig(env string) (*Config, error) {
 		return nil, err
 	}
 
-	http, err := config.CreateOdysseiaClient()
-	if err != nil {
-		return nil, err
-	}
 	podName := config.ParsedPodNameFromEnv()
 	fullPodName := config.StringFromEnv(config.EnvPodName, config.DefaultPodname)
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)

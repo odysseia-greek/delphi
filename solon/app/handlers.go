@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kpango/glg"
-	"github.com/odysseia-greek/aristoteles"
+	elasticmodels "github.com/odysseia-greek/aristoteles/models"
 	"github.com/odysseia-greek/delphi/solon/config"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
 	"github.com/odysseia-greek/diogenes"
 	"github.com/odysseia-greek/plato/generator"
 	"github.com/odysseia-greek/plato/middleware"
 	"github.com/odysseia-greek/plato/models"
+	plato "github.com/odysseia-greek/plato/service"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,24 +28,36 @@ func (s *SolonHandler) PingPong(w http.ResponseWriter, req *http.Request) {
 	middleware.ResponseWithJson(w, pingPong)
 }
 
-func (s *SolonHandler) Health(w http.ResponseWriter, r *http.Request) {
+func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
+	requestId := req.Header.Get(plato.HeaderKey)
+	w.Header().Set(plato.HeaderKey, requestId)
+
 	vaultHealth, _ := s.Config.Vault.Health()
 	glg.Debugf("%s : %s", "vault healthy", strconv.FormatBool(vaultHealth))
 
 	elasticHealth := s.Config.Elastic.Health().Info()
+	dbHealth := models.DatabaseHealth{
+		Healthy:       elasticHealth.Healthy,
+		ClusterName:   elasticHealth.ClusterName,
+		ServerName:    elasticHealth.ServerName,
+		ServerVersion: elasticHealth.ServerVersion,
+	}
 	healthy := models.Health{
 		Healthy:  vaultHealth,
 		Time:     time.Now().String(),
-		Database: elasticHealth,
+		Database: dbHealth,
 	}
 	middleware.ResponseWithJson(w, healthy)
 }
 
 func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Request) {
+	requestId := req.Header.Get(plato.HeaderKey)
+	w.Header().Set(plato.HeaderKey, requestId)
 	//validate podname as registered?
 	policy := []string{"ptolemaios"}
 	token, err := s.Config.Vault.CreateOneTimeToken(policy)
 	if err != nil {
+		glg.Error(err)
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateGUID()},
 			Messages: []models.ValidationMessages{
@@ -153,12 +166,12 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		roleNames = append(roleNames, roleName)
 	}
 
-	putUser := aristoteles.CreateUserRequest{
+	putUser := elasticmodels.CreateUserRequest{
 		Password: password,
 		Roles:    roleNames,
 		FullName: creationRequest.Username,
 		Email:    fmt.Sprintf("%s@odysseia-greek.com", creationRequest.Username),
-		Metadata: &aristoteles.Metadata{Version: 1},
+		Metadata: &elasticmodels.Metadata{Version: 1},
 	}
 
 	var response delphi.SolonResponse

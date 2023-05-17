@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	uuid2 "github.com/google/uuid"
 	"github.com/kpango/glg"
 	"github.com/odysseia-greek/delphi/ptolemaios/config"
@@ -32,6 +33,12 @@ func (p *PtolemaiosHandler) GetSecret(context.Context, *pb.VaultRequest) (*pb.El
 		return nil, err
 	}
 
+	glg.Debug(secret)
+
+	if secret == nil {
+		return nil, fmt.Errorf("secret came back empty")
+	}
+
 	var elasticModel pb.ElasticConfigVault
 	for key, value := range secret.Data {
 		if key == "data" {
@@ -44,6 +51,16 @@ func (p *PtolemaiosHandler) GetSecret(context.Context, *pb.VaultRequest) (*pb.El
 	}
 
 	return &elasticModel, nil
+}
+
+func (p *PtolemaiosHandler) Health(context.Context, *pb.HealthRequest) (*pb.HealthResponse, error) {
+	return &pb.HealthResponse{
+		Health: true,
+	}, nil
+}
+
+func (p *PtolemaiosHandler) Shutdown(context.Context, *pb.ShutDownRequest) (*pb.ShutDownResponse, error) {
+	return &pb.ShutDownResponse{}, fmt.Errorf("not implemented yet")
 }
 
 func (p *PtolemaiosHandler) getOneTimeToken(uuid string) (string, error) {
