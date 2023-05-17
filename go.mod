@@ -6,10 +6,10 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/kpango/glg v1.6.15
-	github.com/odysseia-greek/aristoteles v0.1.2
-	github.com/odysseia-greek/diogenes v0.1.2
-	github.com/odysseia-greek/plato v0.3.1
-	github.com/odysseia-greek/thales v0.1.1
+	github.com/odysseia-greek/aristoteles v0.1.4
+	github.com/odysseia-greek/diogenes v0.1.4
+	github.com/odysseia-greek/plato v0.3.6
+	github.com/odysseia-greek/thales v0.1.6
 	github.com/stretchr/testify v1.8.2
 	google.golang.org/grpc v1.54.0
 	k8s.io/api v0.27.0
@@ -233,7 +233,6 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.66.2 // indirect
-	gopkg.in/oauth2.v3 v3.12.0 // indirect
 	gopkg.in/resty.v1 v1.12.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
