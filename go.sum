@@ -1175,8 +1175,8 @@ github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2 h1:BQ1HW
 github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2/go.mod h1:TLb2Sg7HQcgGdloNxkrmtgDNR9uVYF3lfdFIN4Ro6Sk=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
-github.com/odysseia-greek/aristoteles v0.1.4 h1:T5WqLq2TI/Xk8ENeAYkssa5KYSItyVApzF2yl0oE5ac=
-github.com/odysseia-greek/aristoteles v0.1.4/go.mod h1:fvEv+LALBSszhQs4u/ByO6p3lb16cQIz/oT6JVDE/VE=
+github.com/odysseia-greek/aristoteles v0.3.0 h1:63Z3QjPW2qpMNWl/7CvmhDtuKruLcJ5Ts1lNMEdiH0o=
+github.com/odysseia-greek/aristoteles v0.3.0/go.mod h1:fvEv+LALBSszhQs4u/ByO6p3lb16cQIz/oT6JVDE/VE=
 github.com/odysseia-greek/diogenes v0.1.4 h1:u3XySuwk78ShTRp55g9G8AG/Kev53LzLf+LXwnudbTs=
 github.com/odysseia-greek/diogenes v0.1.4/go.mod h1:RauZJPNoqo2YKiUa+rjSQNHStBXIsT13JaOEthhCGl8=
 github.com/odysseia-greek/plato v0.3.6 h1:+yAPSomGOSixNaRy4yYBXvwiNhrJ8Q0h4dnPZzpX3J4=

@@ -6,7 +6,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/kpango/glg v1.6.15
-	github.com/odysseia-greek/aristoteles v0.1.4
+	github.com/odysseia-greek/aristoteles v0.3.0
 	github.com/odysseia-greek/diogenes v0.1.4
 	github.com/odysseia-greek/plato v0.3.6
 	github.com/odysseia-greek/thales v0.1.6
