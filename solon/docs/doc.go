@@ -1,19 +1,20 @@
 // Solon
 //
-//# Introduction
-//This API is documented in **OpenAPI format** and is using [ReDoc](https://github.com/Redocly/redoc)
+// # Introduction
+// This API is documented in **OpenAPI format** and is using [ReDoc](https://github.com/Redocly/redoc)
 //
-//# Solon in Greek
+// # Solon in Greek
 //
-//αὐτοὶ γὰρ οὐκ οἷοί τε ἦσαν αὐτὸ ποιῆσαι Ἀθηναῖοι: ὁρκίοισι γὰρ μεγάλοισι κατείχοντο δέκα ἔτεα χρήσεσθαι νόμοισι τοὺς ἄν σφι Σόλων θῆται.
+// αὐτοὶ γὰρ οὐκ οἷοί τε ἦσαν αὐτὸ ποιῆσαι Ἀθηναῖοι: ὁρκίοισι γὰρ μεγάλοισι κατείχοντο δέκα ἔτεα χρήσεσθαι νόμοισι τοὺς ἄν σφι Σόλων θῆται.
 //
-//# Solon in English
+// # Solon in English
 //
-//since the Athenians themselves could not do that, for they were bound by solemn oaths to abide for ten years by whatever laws Solon should make.
+// since the Athenians themselves could not do that, for they were bound by solemn oaths to abide for ten years by whatever laws Solon should make.
 //
-//# Note on text
+// # Note on text
 //
-//Translation is mine
+// Translation is mine
+//
 //	Schemes: http, https
 //	Host: k3s-odysseia.greek
 //	BasePath: /solon/v1
