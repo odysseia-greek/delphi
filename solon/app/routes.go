@@ -12,8 +12,8 @@ func InitRoutes(config config.Config) *mux.Router {
 
 	handler := SolonHandler{Config: &config}
 
-	serveMux.HandleFunc("/solon/v1/ping", middleware.Adapt(handler.PingPong, middleware.ValidateRestMethod("GET"), middleware.LogRequestDetails(), middleware.SetCorsHeaders()))
-	serveMux.HandleFunc("/solon/v1/health", middleware.Adapt(handler.Health, middleware.ValidateRestMethod("GET"), middleware.LogRequestDetails(), middleware.SetCorsHeaders()))
+	serveMux.HandleFunc("/solon/v1/ping", middleware.Adapt(handler.PingPong, middleware.ValidateRestMethod("GET"), middleware.SetCorsHeaders()))
+	serveMux.HandleFunc("/solon/v1/health", middleware.Adapt(handler.Health, middleware.ValidateRestMethod("GET"), middleware.SetCorsHeaders()))
 	serveMux.HandleFunc("/solon/v1/token", middleware.Adapt(handler.CreateOneTimeToken, middleware.ValidateRestMethod("GET"), middleware.LogRequestDetails(), middleware.SetCorsHeaders()))
 	serveMux.HandleFunc("/solon/v1/register", middleware.Adapt(handler.RegisterService, middleware.ValidateRestMethod("POST"), middleware.LogRequestDetails(), middleware.SetCorsHeaders()))
 
