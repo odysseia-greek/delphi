@@ -16,14 +16,14 @@ func (r *SolonCreationRequest) Marshal() ([]byte, error) {
 type SolonCreationRequest struct {
 	// example: api
 	// required: true
-	Role     string   `json:"roles"`
+	Role string `json:"roles"`
 	// example: ["dictionary"]
 	// required: true
-	Access   []string `json:"access"`
+	Access []string `json:"access"`
 	// example: alexandros-79bbf86f4b-s48lc
 	// required: true
-	PodName  string   `json:"podName"`
+	PodName string `json:"podName"`
 	// example: alexandros
 	// required: true
-	Username string   `json:"username"`
+	Username string `json:"username"`
 }
