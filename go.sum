@@ -1179,8 +1179,8 @@ github.com/odysseia-greek/aristoteles v0.3.0 h1:63Z3QjPW2qpMNWl/7CvmhDtuKruLcJ5T
 github.com/odysseia-greek/aristoteles v0.3.0/go.mod h1:fvEv+LALBSszhQs4u/ByO6p3lb16cQIz/oT6JVDE/VE=
 github.com/odysseia-greek/diogenes v0.1.4 h1:u3XySuwk78ShTRp55g9G8AG/Kev53LzLf+LXwnudbTs=
 github.com/odysseia-greek/diogenes v0.1.4/go.mod h1:RauZJPNoqo2YKiUa+rjSQNHStBXIsT13JaOEthhCGl8=
-github.com/odysseia-greek/plato v0.3.6 h1:+yAPSomGOSixNaRy4yYBXvwiNhrJ8Q0h4dnPZzpX3J4=
-github.com/odysseia-greek/plato v0.3.6/go.mod h1:mmn3kcQh1IuDm7065D7r00qheuDeXyxsuIxKqxE0yec=
+github.com/odysseia-greek/plato v0.4.5 h1:QOJc1omzhc8fpI4+XIGEdUzwHxmNeE1fwcqceJ3rfUI=
+github.com/odysseia-greek/plato v0.4.5/go.mod h1:mmn3kcQh1IuDm7065D7r00qheuDeXyxsuIxKqxE0yec=
 github.com/odysseia-greek/thales v0.1.6 h1:bxstrjzlkGGsJCdn3o5l9BphVcd9dpQXYfGpIWhj8Wo=
 github.com/odysseia-greek/thales v0.1.6/go.mod h1:Ivp9U2LrKyp/JGP2N3T1Q4dRjakrDhz2KQotVYceVYc=
 github.com/oklog/run v1.1.0 h1:GEenZ1cK0+q0+wsJew9qUg/DyD8k3JzYsZAi5gYi2mA=

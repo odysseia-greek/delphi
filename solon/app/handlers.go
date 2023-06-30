@@ -13,7 +13,6 @@ import (
 	"github.com/odysseia-greek/plato/models"
 	plato "github.com/odysseia-greek/plato/service"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -24,16 +23,44 @@ type SolonHandler struct {
 
 // PingPong pongs the ping
 func (s *SolonHandler) PingPong(w http.ResponseWriter, req *http.Request) {
+	// swagger:route GET /ping status ping
+	//
+	// Checks if api is reachable
+	//
+	//	Consumes:
+	//	- application/json
+	//
+	//	Produces:
+	//	- application/json
+	//
+	//	Schemes: http, https
+	//
+	//	Responses:
+	//	  200: ResultModel
 	pingPong := models.ResultModel{Result: "pong"}
 	middleware.ResponseWithJson(w, pingPong)
 }
 
 func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
+	// swagger:route GET /health status health
+	//
+	// Checks if api is healthy
+	//
+	//	Consumes:
+	//	- application/json
+	//
+	//	Produces:
+	//	- application/json
+	//
+	//	Schemes: http, https
+	//
+	//	Responses:
+	//	  200: Health
+	//	  502: Health
 	requestId := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestId)
 
 	vaultHealth, _ := s.Config.Vault.Health()
-	glg.Debugf("%s : %s", "vault healthy", strconv.FormatBool(vaultHealth))
 
 	elasticHealth := s.Config.Elastic.Health().Info()
 	dbHealth := models.DatabaseHealth{
@@ -51,6 +78,22 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Request) {
+	// swagger:route GET /token service createToken
+	//
+	// Creates a one time token for vault
+	//
+	//	Consumes:
+	//	- application/json
+	//
+	//	Produces:
+	//	- application/json
+	//
+	//	Schemes: http, https
+	//
+	//	Responses:
+	//	  200: TokenResponse
+	//    400: ValidationError
+	//	  405: MethodError
 	requestId := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestId)
 	//validate podname as registered?
@@ -59,7 +102,7 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	if err != nil {
 		glg.Error(err)
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateGUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "getting token",
@@ -80,7 +123,28 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	middleware.ResponseWithCustomCode(w, http.StatusOK, tokenModel)
 }
 
+// swagger:parameters registerService
+type registerServiceParameters struct {
+	// in:body
+	Application delphi.SolonCreationRequest
+}
+
 func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request) {
+	// swagger:route POST /register service registerService
+	//
+	// Registers and creates a new user in Elastic which will be stored in vault
+	//
+	//	Consumes:
+	//	- application/json
+	//
+	//	Produces:
+	//	- application/json
+	//	Schemes: http, https
+	//
+	//	Responses:
+	//	  200: SolonResponse
+	//    400: ValidationError
+	//	  405: MethodError
 	var creationRequest delphi.SolonCreationRequest
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&creationRequest)
@@ -88,7 +152,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	glg.Debug(creationRequest)
 	if err != nil {
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateGUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "decoding",
@@ -103,7 +167,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	password, err := generator.RandomPassword(18)
 	if err != nil {
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateGUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "passwordgenerator",
@@ -145,7 +209,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	if !validAccess || !validRole {
 		glg.Debugf("annotations found on pod %s did not match requested", creationRequest.PodName)
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateGUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "annotations",
@@ -179,7 +243,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	if err != nil {
 		glg.Error(err)
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateGUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "createUser",
@@ -205,7 +269,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	if err != nil {
 		glg.Error(err)
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateGUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "createSecret",
