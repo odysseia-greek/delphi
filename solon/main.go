@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/tls"
 	"crypto/x509"
+	"github.com/gorilla/mux"
 	"github.com/kpango/glg"
 	"github.com/odysseia-greek/delphi/solon/app"
 	"github.com/odysseia-greek/delphi/solon/config"
@@ -43,6 +45,9 @@ func main() {
 		glg.Fatal("death has found me")
 	}
 
+	glg.Info("creating tracing user at startup")
+	err = solonConfig.CreateTracingUser()
+
 	srv := app.InitRoutes(*solonConfig)
 	glg.Infof("%s : %v", "TLS enabled", solonConfig.TLSEnabled)
 	glg.Infof("%s : %s", "running on port", port)
@@ -56,7 +61,7 @@ func main() {
 		caFromFile, _ := ioutil.ReadFile(fp)
 		ca := x509.NewCertPool()
 		ca.AppendCertsFromPEM(caFromFile)
-		httpsServer := plato.CreateTlSConfig(port, ca, srv)
+		httpsServer := createTlSConfig(port, ca, srv)
 		overwrite := os.Getenv("TESTOVERWRITE")
 		var testOverwrite bool
 		if overwrite != "" {
@@ -74,5 +79,28 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+	}
+}
+
+func createTlSConfig(port string, ca *x509.CertPool, server *mux.Router) *http.Server {
+	cfg := &tls.Config{
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		},
+		//ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs: ca,
+	}
+
+	return &http.Server{
+		Addr:         port,
+		Handler:      server,
+		TLSConfig:    cfg,
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
 	}
 }

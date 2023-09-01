@@ -8,10 +8,10 @@ import (
 	"github.com/odysseia-greek/delphi/solon/config"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
 	"github.com/odysseia-greek/diogenes"
+	plato "github.com/odysseia-greek/plato/config"
 	"github.com/odysseia-greek/plato/generator"
 	"github.com/odysseia-greek/plato/middleware"
 	"github.com/odysseia-greek/plato/models"
-	plato "github.com/odysseia-greek/plato/service"
 	"net/http"
 	"strings"
 	"time"
@@ -102,7 +102,7 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	if err != nil {
 		glg.Error(err)
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: requestId},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "getting token",
@@ -129,106 +129,47 @@ type registerServiceParameters struct {
 	Application delphi.SolonCreationRequest
 }
 
+// RegisterService registers and creates a new user in Elastic which will be stored in vault.
+//
+// swagger:route POST /register service registerService
+//
+// Registers and creates a new user in Elastic which will be stored in vault.
+//
+// Consumes:
+// - application/json
+//
+// Produces:
+// - application/json
+// Schemes: http, https
+//
+// Responses:
+//
+//	200: SolonResponse
+//	400: ValidationError
+//	405: MethodError
 func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request) {
-	// swagger:route POST /register service registerService
-	//
-	// Registers and creates a new user in Elastic which will be stored in vault
-	//
-	//	Consumes:
-	//	- application/json
-	//
-	//	Produces:
-	//	- application/json
-	//	Schemes: http, https
-	//
-	//	Responses:
-	//	  200: SolonResponse
-	//    400: ValidationError
-	//	  405: MethodError
-	var creationRequest delphi.SolonCreationRequest
-	decoder := json.NewDecoder(req.Body)
-	err := decoder.Decode(&creationRequest)
+	requestId := req.Header.Get(plato.HeaderKey)
+	w.Header().Set(plato.HeaderKey, requestId)
 
-	glg.Debug(creationRequest)
-	if err != nil {
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "decoding",
-					Message: err.Error(),
-				},
-			},
-		}
-		middleware.ResponseWithJson(w, e)
+	var creationRequest delphi.SolonCreationRequest
+	if err := json.NewDecoder(req.Body).Decode(&creationRequest); err != nil {
+		s.handleValidationError(w, "decoding", requestId, err)
 		return
 	}
 
 	password, err := generator.RandomPassword(18)
 	if err != nil {
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "passwordgenerator",
-					Message: err.Error(),
-				},
-			},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "passwordgenerator", requestId, err)
 		return
 	}
 
-	glg.Debug("checking pod for correct label")
-	//check if pod has the correct labels
 	pod, err := s.Config.Kube.Workload().GetPodByName(s.Config.Namespace, creationRequest.PodName)
-	var validAccess bool
-	var validRole bool
-	for key, value := range pod.Annotations {
-		if key == s.Config.AccessAnnotation {
-			splittedValues := strings.Split(value, ";")
-			for _, a := range creationRequest.Access {
-				contains := sliceContains(splittedValues, a)
-				if !contains {
-					break
-				}
-				glg.Debugf("requested %s matched in annotations %s", a, splittedValues)
-				validAccess = contains
-			}
-
-		} else if key == s.Config.RoleAnnotation {
-			if value == creationRequest.Role {
-				glg.Debugf("requested %s matched annotation %s", creationRequest.Role, value)
-				validRole = true
-			}
-		} else {
-			continue
-		}
-	}
-
-	if !validAccess || !validRole {
-		glg.Debugf("annotations found on pod %s did not match requested", creationRequest.PodName)
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "annotations",
-					Message: fmt.Sprintf("annotations requested and found on pod %s did not match", creationRequest.PodName),
-				},
-			},
-		}
-		middleware.ResponseWithJson(w, e)
+	if err != nil || !s.isValidAnnotations(pod.Annotations, &creationRequest) {
+		s.handleValidationError(w, "annotations", requestId, fmt.Errorf("annotations requested and found on pod %s did not match", creationRequest.PodName))
 		return
 	}
 
-	glg.Debugf("annotations found on pod %s matched requested", creationRequest.PodName)
-
-	var roleNames []string
-	for _, a := range creationRequest.Access {
-		roleName := fmt.Sprintf("%s_%s", a, creationRequest.Role)
-		glg.Debugf("adding role named: %s to user", roleName)
-		roleNames = append(roleNames, roleName)
-	}
+	roleNames := s.generateRoleNames(&creationRequest)
 
 	putUser := elasticmodels.CreateUserRequest{
 		Password: password,
@@ -238,20 +179,9 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		Metadata: &elasticmodels.Metadata{Version: 1},
 	}
 
-	var response delphi.SolonResponse
 	userCreated, err := s.Config.Elastic.Access().CreateUser(creationRequest.Username, putUser)
 	if err != nil {
-		glg.Error(err)
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "createUser",
-					Message: err.Error(),
-				},
-			},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "createUser", requestId, err)
 		return
 	}
 
@@ -267,26 +197,55 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 
 	secretCreated, err := s.Config.Vault.CreateNewSecret(creationRequest.Username, payload)
 	if err != nil {
-		glg.Error(err)
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "createSecret",
-					Message: err.Error(),
-				},
-			},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "createSecret", requestId, err)
 		return
 	}
 
-	glg.Debugf("secret created in vault %t", secretCreated)
-
-	response.Created = userCreated
-
+	response := models.SolonResponse{SecretCreated: secretCreated, UserCreated: userCreated}
 	middleware.ResponseWithCustomCode(w, http.StatusCreated, response)
-	return
+}
+
+func (s *SolonHandler) handleValidationError(w http.ResponseWriter, field, requestId string, err error) {
+	e := models.ValidationError{
+		ErrorModel: models.ErrorModel{UniqueCode: requestId},
+		Messages: []models.ValidationMessages{
+			{
+				Field:   field,
+				Message: err.Error(),
+			},
+		},
+	}
+	middleware.ResponseWithJson(w, e)
+}
+
+func (s *SolonHandler) isValidAnnotations(annotations map[string]string, req *delphi.SolonCreationRequest) bool {
+	var validAccess bool
+	var validRole bool
+
+	for key, value := range annotations {
+		if key == s.Config.AccessAnnotation {
+			splittedValues := strings.Split(value, ";")
+			for _, a := range req.Access {
+				if sliceContains(splittedValues, a) {
+					validAccess = true
+					break
+				}
+			}
+		} else if key == s.Config.RoleAnnotation && value == req.Role {
+			validRole = true
+		}
+	}
+
+	return validAccess && validRole
+}
+
+func (s *SolonHandler) generateRoleNames(req *delphi.SolonCreationRequest) []string {
+	var roleNames []string
+	for _, a := range req.Access {
+		roleName := fmt.Sprintf("%s_%s", a, req.Role)
+		roleNames = append(roleNames, roleName)
+	}
+	return roleNames
 }
 
 func sliceContains(slice []string, str string) bool {
