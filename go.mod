@@ -3,13 +3,12 @@ module github.com/odysseia-greek/delphi
 go 1.20
 
 require (
-	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/kpango/glg v1.6.15
-	github.com/odysseia-greek/aristoteles v0.3.0
-	github.com/odysseia-greek/diogenes v0.1.4
-	github.com/odysseia-greek/plato v0.4.5
-	github.com/odysseia-greek/thales v0.1.6
+	github.com/odysseia-greek/aristoteles v0.5.0
+	github.com/odysseia-greek/diogenes v0.2.1
+	github.com/odysseia-greek/plato v0.7.4
+	github.com/odysseia-greek/thales v0.2.1
 	github.com/stretchr/testify v1.8.2
 	google.golang.org/grpc v1.54.0
 	k8s.io/api v0.27.0
@@ -53,20 +52,16 @@ require (
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible // indirect
 	github.com/circonus-labs/circonusllhist v0.1.3 // indirect
 	github.com/cloudflare/circl v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba // indirect
-	github.com/dgraph-io/badger/v3 v3.2103.2 // indirect
-	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/digitalocean/godo v1.7.5 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/duosecurity/duo_api_golang v0.0.0-20190308151101-6c680f768e74 // indirect
-	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.0.0-20211216131617-bbee439d559c // indirect
 	github.com/elastic/go-elasticsearch/v8 v8.6.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
@@ -93,16 +88,15 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
-	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/flatbuffers v2.0.0+incompatible // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/go-metrics-stackdriver v0.2.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.1 // indirect
 	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
