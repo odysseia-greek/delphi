@@ -32,7 +32,8 @@ func TestHealth(t *testing.T) {
 		mockCode := 200
 		mockElasticClient, err := elastic.NewMockClient(fixtureFile, mockCode)
 		assert.Nil(t, err)
-		mockVaultClient, err := vault.NewMockVaultClient(t)
+		vaultFixtures := []string{"health"}
+		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
 		assert.Nil(t, err)
 
 		testConfig := configs.Config{
@@ -53,7 +54,9 @@ func TestHealth(t *testing.T) {
 
 func TestCreateToken(t *testing.T) {
 	t.Run("HappyPath", func(t *testing.T) {
-		mockVaultClient, err := vault.NewMockVaultClient(t)
+		mockCode := 200
+		vaultFixtures := []string{"token"}
+		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
 		assert.Nil(t, err)
 
 		testConfig := configs.Config{
@@ -107,7 +110,8 @@ func TestRegister(t *testing.T) {
 		mockCode := 200
 		mockElasticClient, err := elastic.NewMockClient(fixtureFile, mockCode)
 		assert.Nil(t, err)
-		mockVaultClient, err := vault.NewMockVaultClient(t)
+		vaultFixtures := []string{"createSecret"}
+		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
 		assert.Nil(t, err)
 		mockKube, err := kubernetes.FakeKubeClient(ns)
 		assert.Nil(t, err)
@@ -131,11 +135,11 @@ func TestRegister(t *testing.T) {
 		router := InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
-		var sut delphi.SolonResponse
+		var sut models.SolonResponse
 		err = json.NewDecoder(response.Body).Decode(&sut)
 		assert.Nil(t, err)
 		assert.Equal(t, http.StatusCreated, response.Code)
-		assert.True(t, sut.Created)
+		assert.True(t, sut.SecretCreated)
 	})
 
 	t.Run("AnnotationNotOnPodRole", func(t *testing.T) {
