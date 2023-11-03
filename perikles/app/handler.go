@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/kpango/glg"
 	"github.com/odysseia-greek/delphi/perikles/config"
+	plato "github.com/odysseia-greek/plato/config"
 	"github.com/odysseia-greek/plato/middleware"
 	"github.com/odysseia-greek/plato/models"
 	"io/ioutil"
@@ -25,6 +26,9 @@ func (p *PeriklesHandler) pingPong(w http.ResponseWriter, req *http.Request) {
 
 // validate that new deployments have the correct secret attached to them
 func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
+	requestId := req.Header.Get(plato.HeaderKey)
+	w.Header().Set(plato.HeaderKey, requestId)
+
 	var body []byte
 	if req.Body != nil {
 		if data, err := ioutil.ReadAll(req.Body); err == nil {
@@ -34,7 +38,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 
 	if len(body) == 0 {
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: requestId},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "body",
@@ -49,7 +53,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 	arRequest := v1beta1.AdmissionReview{}
 	if err := json.Unmarshal(body, &arRequest); err != nil {
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: requestId},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "body",
@@ -63,7 +67,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 
 	if arRequest.Request == nil {
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
+			ErrorModel: models.ErrorModel{UniqueCode: requestId},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "admission request",
@@ -84,7 +88,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 		deploy := v1.Deployment{}
 		if err := json.Unmarshal(raw, &deploy); err != nil {
 			e := models.ValidationError{
-				ErrorModel: models.ErrorModel{UniqueCode: middleware.CreateUUID()},
+				ErrorModel: models.ErrorModel{UniqueCode: requestId},
 				Messages: []models.ValidationMessages{
 					{
 						Field:   "body",

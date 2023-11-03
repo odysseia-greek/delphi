@@ -46,7 +46,7 @@ func main() {
 	}
 
 	glg.Info("creating tracing user at startup")
-	err = solonConfig.CreateTracingUser()
+	err = solonConfig.CreateTracingUser(false)
 
 	srv := app.InitRoutes(*solonConfig)
 	glg.Infof("%s : %v", "TLS enabled", solonConfig.TLSEnabled)
