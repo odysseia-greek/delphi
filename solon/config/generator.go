@@ -77,10 +77,36 @@ func CreateNewConfig(env string) (*Config, error) {
 	}, nil
 }
 
-func (s *Config) CreateTracingUser() error {
+func (s *Config) CreateTracingUser(update bool) error {
 	password, err := generator.RandomPassword(24)
 	if err != nil {
 		return err
+	}
+
+	secretName := fmt.Sprintf("%s-elastic", config.DefaultTracingName)
+	secretData := map[string][]byte{
+		"user":     []byte(config.DefaultTracingName),
+		"password": []byte(password),
+	}
+
+	secret, _ := s.Kube.Configuration().GetSecret(s.Namespace, secretName)
+
+	if secret == nil {
+		glg.Infof("secret %s does not exist", secretName)
+		err = s.Kube.Configuration().CreateSecret(s.Namespace, secretName, secretData)
+		if err != nil {
+			return err
+		}
+	} else if update {
+		glg.Infof("secret %s already exists update flag set so updating", secret.Name)
+
+		err = s.Kube.Configuration().UpdateSecret(s.Namespace, secretName, secretData)
+		if err != nil {
+			return err
+		}
+	} else {
+		glg.Infof("secret %s already exists so no action required", secretName)
+		return nil
 	}
 
 	putUser := elasticmodels.CreateUserRequest{
@@ -96,45 +122,7 @@ func (s *Config) CreateTracingUser() error {
 		return err
 	}
 
-	//createRequest := diogenes.CreateSecretRequest{
-	//	Data: diogenes.ElasticConfigVault{
-	//		Username:    config.DefaultTracingName,
-	//		Password:    password,
-	//		ElasticCERT: string(s.ElasticCert),
-	//	},
-	//}
-	//
-	//payload, _ := createRequest.Marshal()
-
-	//_, err = s.Vault.CreateNewSecret(config.DefaultTracingName, payload)
-	//if err != nil {
-	//	return err
-	//}
-
-	secretName := fmt.Sprintf("%s-elastic", config.DefaultTracingName)
-	secretData := map[string][]byte{
-		"user":     []byte(config.DefaultTracingName),
-		"password": []byte(password),
-	}
-
-	if userCreated {
-		secret, _ := s.Kube.Configuration().GetSecret(s.Namespace, secretName)
-
-		if secret == nil {
-			glg.Infof("secret %s does not exist", secretName)
-			err = s.Kube.Configuration().CreateSecret(s.Namespace, secretName, secretData)
-			if err != nil {
-				return err
-			}
-		} else {
-			glg.Infof("secret %s already exists", secret.Name)
-
-			err = s.Kube.Configuration().UpdateSecret(s.Namespace, secretName, secretData)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	glg.Infof("user %s created: %v in elasticSearch", config.DefaultTracingName, userCreated)
 
 	return nil
 }
