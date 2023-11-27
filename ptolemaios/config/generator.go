@@ -19,8 +19,10 @@ type Config struct {
 
 func CreateNewConfig(env string) (*Config, error) {
 	healthCheck := true
+	debugMode := false
 	if env == "LOCAL" || env == "TEST" {
 		healthCheck = false
+		debugMode = true
 	}
 
 	http, err := config.CreateOdysseiaClient()
@@ -28,7 +30,7 @@ func CreateNewConfig(env string) (*Config, error) {
 		return nil, err
 	}
 
-	vault, err := diogenes.CreateVaultClient(env, healthCheck)
+	vault, err := diogenes.CreateVaultClient(env, healthCheck, debugMode)
 	if err != nil {
 		return nil, err
 	}

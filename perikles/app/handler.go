@@ -2,9 +2,9 @@ package app
 
 import (
 	"encoding/json"
-	"github.com/kpango/glg"
 	"github.com/odysseia-greek/delphi/perikles/config"
 	plato "github.com/odysseia-greek/plato/config"
+	"github.com/odysseia-greek/plato/logging"
 	"github.com/odysseia-greek/plato/middleware"
 	"github.com/odysseia-greek/plato/models"
 	"io/ioutil"
@@ -103,7 +103,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 		go func() {
 			err := p.checkForAnnotations(deploy)
 			if err != nil {
-				glg.Error(err)
+				logging.Error(err.Error())
 			}
 		}()
 	}

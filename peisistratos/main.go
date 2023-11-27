@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/odysseia-greek/delphi/peisistratos/app"
+	"github.com/odysseia-greek/plato/logging"
 	"log"
 	"os"
 	"strings"
@@ -9,7 +10,7 @@ import (
 
 func main() {
 	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=Peisistratos
-	log.Print(`
+	logging.System(`
  ____   ___  ____ _____ ____ _____ ______  ____    ____  ______   ___   _____
 |    \ /  _]|    / ___/|    / ___/|      ||    \  /    ||      | /   \ / ___/
 |  o  )  [_  |  (   \_  |  (   \_ |      ||  D  )|  o  ||      ||     (   \_ 
@@ -19,12 +20,12 @@ func main() {
 |__| |_____||____|\___||____|\___|  |__|  |__|\_||__|__|  |__|   \___/  \___|
                                                                              
 `)
-	log.Print(strings.Repeat("~", 37))
-	log.Print("\"καὶ Πεισίστρατος μὲν ἐτυράννευε Ἀθηνέων\"")
-	log.Print("\"So Pisistratus was sovereign of Athens\"")
-	log.Print(strings.Repeat("~", 37))
+	logging.System(strings.Repeat("~", 37))
+	logging.System("\"καὶ Πεισίστρατος μὲν ἐτυράννευε Ἀθηνέων\"")
+	logging.System("\"So Pisistratus was sovereign of Athens\"")
+	logging.System(strings.Repeat("~", 37))
 
-	log.Print("creating config")
+	logging.System("creating config")
 
 	env := os.Getenv("ENV")
 
@@ -34,10 +35,8 @@ func main() {
 	}
 
 	err = handler.InitVault()
-
-	log.Print(err.Error())
-
 	if err != nil {
+		log.Print(err.Error())
 		os.Exit(1)
 	} else {
 		os.Exit(0)
