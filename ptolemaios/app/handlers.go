@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kpango/glg"
 	"github.com/odysseia-greek/delphi/ptolemaios/config"
+	"github.com/odysseia-greek/plato/logging"
 	"github.com/odysseia-greek/plato/models"
 	pb "github.com/odysseia-greek/plato/proto"
 	"github.com/odysseia-greek/plato/service"
@@ -38,14 +38,13 @@ func (p *PtolemaiosHandler) GetSecret(ctx context.Context, unnamed *pb.VaultRequ
 		return nil, err
 	}
 
-	glg.Debug("so far so good")
 	p.Config.Vault.SetOnetimeToken(oneTimeToken)
 	secret, err := p.Config.Vault.GetSecret(p.Config.PodName)
 	if err != nil {
 		return nil, err
 	}
 
-	glg.Debug(secret)
+	logging.Debug(fmt.Sprintf("found secret: %v", secret))
 
 	if secret == nil {
 		return nil, fmt.Errorf("secret came back empty")
@@ -86,14 +85,13 @@ func (p *PtolemaiosHandler) GetSecretNamed(ctx context.Context, named *pb.VaultR
 		return nil, err
 	}
 
-	glg.Debug("so far so good")
 	p.Config.Vault.SetOnetimeToken(oneTimeToken)
 	secret, err := p.Config.Vault.GetSecret(named.PodName)
 	if err != nil {
 		return nil, err
 	}
 
-	glg.Debug(secret)
+	logging.Debug(fmt.Sprintf("found secret: %v", secret))
 
 	if secret == nil {
 		return nil, fmt.Errorf("secret came back empty")
@@ -140,7 +138,7 @@ func (p *PtolemaiosHandler) getOneTimeToken(traceId string) (string, error) {
 		return "", err
 	}
 
-	glg.Debugf("found token: %s", tokenModel.Token)
+	logging.Debug(fmt.Sprintf("found token: %s", tokenModel.Token))
 	return tokenModel.Token, nil
 }
 
@@ -148,19 +146,18 @@ func (p *PtolemaiosHandler) CheckForJobExit(exitChannel chan bool) {
 	var counter int
 	for {
 		counter++
-		glg.Debugf("run number: %d", counter)
+		logging.Debug(fmt.Sprintf("run number: %d", counter))
 		time.Sleep(p.Duration)
 		pod, err := p.Config.Kube.Workload().GetPodByName(p.Config.Namespace, p.Config.FullPodName)
 		if err != nil {
-			glg.Errorf("error getting kube response %s", err)
+			logging.Error(fmt.Sprintf("error getting kube response %s", err.Error()))
 			continue
 		}
 
 		for _, container := range pod.Status.ContainerStatuses {
 			if container.Name == p.Config.PodName {
-				glg.Debug(container.Name)
 				if container.State.Terminated == nil {
-					glg.Debugf("%s not done yet", container.Name)
+					logging.Debug(fmt.Sprintf("%s not done yet", container.Name))
 					continue
 				}
 				if container.State.Terminated.ExitCode == 0 {

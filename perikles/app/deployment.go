@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"github.com/kpango/glg"
+	"github.com/odysseia-greek/plato/logging"
 	"k8s.io/api/apps/v1"
 	"strconv"
 	"strings"
@@ -43,21 +43,21 @@ func (p *PeriklesHandler) hostFlow(deployment v1.Deployment) error {
 	var secretName string
 
 	for key, value := range deployment.Spec.Template.Annotations {
-		glg.Info("looking through annotation")
+		logging.Info("looking through annotation")
 
 		if key == AnnotationValidity {
 			validity, _ = strconv.Atoi(value)
-			glg.Info(fmt.Sprintf("validity set to %v", validity))
+			logging.Info(fmt.Sprintf("validity set to %v", validity))
 		}
 
 		if key == AnnotationHost {
 			hostName = value
-			glg.Info(fmt.Sprintf("host set to %s", hostName))
+			logging.Info(fmt.Sprintf("host set to %s", hostName))
 		}
 
 		if key == AnnotationHostSecret {
 			secretName = value
-			glg.Info(fmt.Sprintf("secretName set to %s", secretName))
+			logging.Info(fmt.Sprintf("secretName set to %s", secretName))
 		}
 	}
 
@@ -66,7 +66,7 @@ func (p *PeriklesHandler) hostFlow(deployment v1.Deployment) error {
 			if volume.Secret != nil {
 				if strings.Contains(volume.Secret.SecretName, hostName) || volume.Name == hostName {
 					secretName = volume.Secret.SecretName
-					glg.Info(fmt.Sprintf("secretName set to %s", secretName))
+					logging.Info(fmt.Sprintf("secretName set to %s", secretName))
 				}
 			}
 		}
@@ -81,13 +81,13 @@ func (p *PeriklesHandler) hostFlow(deployment v1.Deployment) error {
 		fmt.Sprintf("%s.%s.svc.cluster.local", hostName, orgName),
 	}
 
-	glg.Debug("creating certs")
+	logging.Debug("creating certs")
 	err := p.createCert(hosts, validity, secretName)
 	if err != nil {
 		return err
 	}
 
-	glg.Debug("created certs")
+	logging.Debug("created certs")
 	_, err = p.addHostToMapping(hostName, secretName, deployment.Kind, validity)
 	if err != nil {
 		return err

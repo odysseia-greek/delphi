@@ -2,12 +2,12 @@ package config
 
 import (
 	"fmt"
-	"github.com/kpango/glg"
 	"github.com/odysseia-greek/aristoteles"
 	elasticmodels "github.com/odysseia-greek/aristoteles/models"
 	"github.com/odysseia-greek/diogenes"
 	"github.com/odysseia-greek/plato/config"
 	"github.com/odysseia-greek/plato/generator"
+	"github.com/odysseia-greek/plato/logging"
 	kubernetes "github.com/odysseia-greek/thales"
 )
 
@@ -27,15 +27,17 @@ type Config struct {
 func CreateNewConfig(env string) (*Config, error) {
 	healthCheck := true
 	outOfClusterKube := false
+	debugMode := false
 	if env == "LOCAL" || env == "TEST" {
 		healthCheck = false
 		outOfClusterKube = true
+		debugMode = true
 	}
 
 	testOverWrite := config.BoolFromEnv(testOverWrite)
 	tls := config.BoolFromEnv(config.EnvTlSKey)
 
-	vault, err := diogenes.CreateVaultClient(env, healthCheck)
+	vault, err := diogenes.CreateVaultClient(env, healthCheck, debugMode)
 	if err != nil {
 		return nil, err
 	}
@@ -92,20 +94,20 @@ func (s *Config) CreateTracingUser(update bool) error {
 	secret, _ := s.Kube.Configuration().GetSecret(s.Namespace, secretName)
 
 	if secret == nil {
-		glg.Infof("secret %s does not exist", secretName)
+		logging.Info(fmt.Sprintf("secret %s does not exist", secretName))
 		err = s.Kube.Configuration().CreateSecret(s.Namespace, secretName, secretData)
 		if err != nil {
 			return err
 		}
 	} else if update {
-		glg.Infof("secret %s already exists update flag set so updating", secret.Name)
+		logging.Info(fmt.Sprintf("secret %s already exists update flag set so updating", secret.Name))
 
 		err = s.Kube.Configuration().UpdateSecret(s.Namespace, secretName, secretData)
 		if err != nil {
 			return err
 		}
 	} else {
-		glg.Infof("secret %s already exists so no action required", secretName)
+		logging.Info(fmt.Sprintf("secret %s already exists so no action required", secretName))
 		return nil
 	}
 
@@ -122,7 +124,7 @@ func (s *Config) CreateTracingUser(update bool) error {
 		return err
 	}
 
-	glg.Infof("user %s created: %v in elasticSearch", config.DefaultTracingName, userCreated)
+	logging.Info(fmt.Sprintf("user %s created: %v in elasticSearch", config.DefaultTracingName, userCreated))
 
 	return nil
 }

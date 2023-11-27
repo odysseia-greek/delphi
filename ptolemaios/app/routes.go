@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/kpango/glg"
 	"github.com/odysseia-greek/delphi/ptolemaios/config"
+	"github.com/odysseia-greek/plato/logging"
 	"os"
 	"time"
 )
@@ -18,7 +18,7 @@ func CreateHandler(config *config.Config) *PtolemaiosHandler {
 			select {
 
 			case <-jobExit:
-				glg.Debug("exiting because of condition")
+				logging.Debug("exiting because of condition")
 				os.Exit(0)
 			}
 		}()

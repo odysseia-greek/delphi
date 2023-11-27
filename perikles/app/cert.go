@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"github.com/kpango/glg"
+	"github.com/odysseia-greek/plato/logging"
 	"time"
 )
 
@@ -21,13 +21,13 @@ func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretNam
 	secret, _ := p.Config.Kube.Configuration().GetSecret(p.Config.Namespace, secretName)
 
 	if secret == nil {
-		glg.Infof("secret %s does not exist", secretName)
+		logging.Info(fmt.Sprintf("secret %s does not exist", secretName))
 		err = p.Config.Kube.Configuration().CreateTlSSecret(p.Config.Namespace, secretName, certData, false)
 		if err != nil {
 			return err
 		}
 	} else {
-		glg.Infof("secret %s already exists", secret.Name)
+		logging.Info(fmt.Sprintf("secret %s already exists", secret.Name))
 
 		newAnnotation := make(map[string]string)
 		newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)

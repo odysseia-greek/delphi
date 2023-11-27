@@ -3,13 +3,13 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kpango/glg"
 	elasticmodels "github.com/odysseia-greek/aristoteles/models"
 	"github.com/odysseia-greek/delphi/solon/config"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
 	"github.com/odysseia-greek/diogenes"
 	plato "github.com/odysseia-greek/plato/config"
 	"github.com/odysseia-greek/plato/generator"
+	"github.com/odysseia-greek/plato/logging"
 	"github.com/odysseia-greek/plato/middleware"
 	"github.com/odysseia-greek/plato/models"
 	"net/http"
@@ -100,7 +100,7 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	policy := []string{"ptolemaios"}
 	token, err := s.Config.Vault.CreateOneTimeToken(policy)
 	if err != nil {
-		glg.Error(err)
+		logging.Error(err.Error())
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: requestId},
 			Messages: []models.ValidationMessages{
@@ -113,8 +113,6 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 		middleware.ResponseWithJson(w, e)
 		return
 	}
-
-	glg.Debug(token)
 
 	tokenModel := delphi.TokenResponse{
 		Token: token,

@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"github.com/kpango/glg"
+	"github.com/odysseia-greek/plato/logging"
 	"github.com/odysseia-greek/thales/crd/v1alpha"
 	"time"
 )
@@ -24,7 +24,7 @@ func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType str
 			service.KubeType = kubeType
 			service.SecretName = secretName
 			mapping.Spec.Services[i] = service
-			glg.Debugf("updating existing service mapping %s", service.Name)
+			logging.Debug(fmt.Sprintf("updating existing service mapping %s", service.Name))
 			updatedMapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Update(mapping)
 			if err != nil {
 				return nil, err
@@ -46,7 +46,7 @@ func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType str
 	}
 	mapping.Spec.Services = append(mapping.Spec.Services, service)
 
-	glg.Debugf("updating new service mapping %s", serviceName)
+	logging.Debug(fmt.Sprintf("updating new service mapping %s", serviceName))
 	updatedMapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Update(mapping)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (p *PeriklesHandler) loopForMappingUpdates() {
 		case <-ticker.C:
 			err := p.checkMappingForUpdates()
 			if err != nil {
-				glg.Error(err)
+				logging.Error(err.Error())
 			}
 		}
 	}
@@ -117,7 +117,7 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 	}
 
 	if len(mapping.Spec.Services) == 0 {
-		glg.Debug("service mapping empty no action required")
+		logging.Debug("service mapping empty no action required")
 		return nil
 	}
 
@@ -128,8 +128,8 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 		}
 
 		if redeploy {
-			glg.Debugf("redeploy needed for service: %s", service.Name)
-			glg.Debug("creating new certs after validity ran out")
+			logging.Debug(fmt.Sprintf("redeploy needed for service: %s", service.Name))
+			logging.Debug("creating new certs after validity ran out")
 			orgName := service.Namespace
 			hostName := service.Name
 

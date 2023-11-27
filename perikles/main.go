@@ -3,9 +3,10 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/kpango/glg"
 	"github.com/odysseia-greek/delphi/perikles/app"
 	"github.com/odysseia-greek/delphi/perikles/config"
+	"github.com/odysseia-greek/plato/logging"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -24,62 +25,58 @@ func main() {
 		port = standardPort
 	}
 	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=PERIKLES
-	glg.Info("\n ____   ___  ____   ____  __  _  _        ___  _____\n|    \\ /  _]|    \\ |    ||  |/ ]| |      /  _]/ ___/\n|  o  )  [_ |  D  ) |  | |  ' / | |     /  [_(   \\_ \n|   _/    _]|    /  |  | |    \\ | |___ |    _]\\__  |\n|  | |   [_ |    \\  |  | |     ||     ||   [_ /  \\ |\n|  | |     ||  .  \\ |  | |  .  ||     ||     |\\    |\n|__| |_____||__|\\_||____||__|\\_||_____||_____| \\___|\n                                                    \n")
-	glg.Info(strings.Repeat("~", 37))
-	glg.Info("\"τόν γε σοφώτατον οὐχ ἁμαρτήσεται σύμβουλον ἀναμείνας χρόνον.\"")
-	glg.Info("\"he would yet do full well to wait for that wisest of all counsellors, Time.\"")
-	glg.Info(strings.Repeat("~", 37))
-
-	glg.Debug("creating config")
+	logging.System("\n ____   ___  ____   ____  __  _  _        ___  _____\n|    \\ /  _]|    \\ |    ||  |/ ]| |      /  _]/ ___/\n|  o  )  [_ |  D  ) |  | |  ' / | |     /  [_(   \\_ \n|   _/    _]|    /  |  | |    \\ | |___ |    _]\\__  |\n|  | |   [_ |    \\  |  | |     ||     ||   [_ /  \\ |\n|  | |     ||  .  \\ |  | |  .  ||     ||     |\\    |\n|__| |_____||__|\\_||____||__|\\_||_____||_____| \\___|\n                                                    \n")
+	logging.System(strings.Repeat("~", 37))
+	logging.System("\"τόν γε σοφώτατον οὐχ ἁμαρτήσεται σύμβουλον ἀναμείνας χρόνον.\"")
+	logging.System("\"he would yet do full well to wait for that wisest of all counsellors, Time.\"")
+	logging.System(strings.Repeat("~", 37))
 
 	env := os.Getenv("ENV")
 
 	periklesConfig, err := config.CreateNewConfig(env)
 	if err != nil {
-		glg.Error(err)
-		glg.Fatal("death has found me")
+		log.Fatal("death has found me")
 	}
 
 	handler := app.PeriklesHandler{Config: periklesConfig}
 
-	glg.Info("init for CA started...")
+	logging.Debug("init for CA started...")
 	err = handler.Config.Cert.InitCa()
 	if err != nil {
-		glg.Fatal(err)
+		log.Fatal("death has found me")
 	}
 
-	glg.Info("CA created")
+	logging.Debug("CA created")
 
-	glg.Info("creating CRD...")
+	logging.Debug("creating CRD...")
 	created, err := handler.Config.Kube.V1Alpha1().ServiceMapping().CreateInCluster()
 	if err != nil {
-		glg.Error(err)
+		logging.Error(err.Error())
 	}
 
 	if created {
-		glg.Info("CRD created")
+		logging.Debug("CRD created")
 	} else {
-		glg.Info("CRD not created, it might already exist")
+		logging.Debug("CRD not created, it might already exist")
 	}
 
 	_, err = handler.Config.Kube.V1Alpha1().ServiceMapping().Get(periklesConfig.CrdName)
 	if err != nil {
-		glg.Error(err)
 		mapping, err := handler.Config.Kube.V1Alpha1().ServiceMapping().Parse(nil, periklesConfig.CrdName, periklesConfig.Namespace)
 		if err != nil {
-			glg.Error(err)
+			logging.Error(err.Error())
 		}
 
 		createdCrd, err := handler.Config.Kube.V1Alpha1().ServiceMapping().Create(mapping)
 		if err != nil {
-			glg.Error(err)
+			logging.Error(err.Error())
 		}
 
-		glg.Debugf("created mapping %s", createdCrd.Name)
+		logging.Debug(fmt.Sprintf("created mapping %s", createdCrd.Name))
 
 	}
 
-	glg.Debug("init routes")
+	logging.Debug("init routes")
 	srv := app.InitRoutes(*periklesConfig)
 
 	cfg := &tls.Config{
@@ -94,7 +91,7 @@ func main() {
 		},
 	}
 
-	glg.Debug("setting up server with https")
+	logging.Debug("setting up server with https")
 
 	httpsServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
@@ -103,12 +100,12 @@ func main() {
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
 	}
 
-	glg.Debug("loading cert files from mount")
+	logging.Debug("loading cert files from mount")
 	certFile := filepath.Join(periklesConfig.TLSFiles, crtFileName)
 	keyFile := filepath.Join(periklesConfig.TLSFiles, keyFileName)
 
 	err = httpsServer.ListenAndServeTLS(certFile, keyFile)
 	if err != nil {
-		glg.Fatal(err)
+		log.Fatal(err)
 	}
 }

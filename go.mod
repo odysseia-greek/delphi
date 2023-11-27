@@ -4,10 +4,10 @@ go 1.20
 
 require (
 	github.com/gorilla/mux v1.8.0
-	github.com/kpango/glg v1.6.15
+	github.com/hashicorp/vault/api v1.10.0
 	github.com/odysseia-greek/aristoteles v0.5.0
-	github.com/odysseia-greek/diogenes v0.2.2
-	github.com/odysseia-greek/plato v0.7.4
+	github.com/odysseia-greek/diogenes v0.3.1
+	github.com/odysseia-greek/plato v0.7.6
 	github.com/odysseia-greek/thales v0.2.1
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.57.0
@@ -27,7 +27,6 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
-	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
@@ -43,12 +42,10 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.4 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-5 // indirect
-	github.com/hashicorp/vault/api v1.10.0 // indirect
 	github.com/hashicorp/vault/api/auth/kubernetes v0.5.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kpango/fastime v1.1.9 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -60,8 +57,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
-	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
