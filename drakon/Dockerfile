@@ -4,7 +4,7 @@ ARG project_name
 ARG TARGETOS
 ARG TARGETARCH
 
-ENV project_name=${project_name}
+ENV project_name=drakon
 
 RUN apk update && apk add ca-certificates
 RUN rm -rf /var/cache/apk/*
