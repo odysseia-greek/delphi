@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
+	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/ptolemaios/app"
 	"github.com/odysseia-greek/delphi/ptolemaios/config"
-	"github.com/odysseia-greek/plato/logging"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
 
-	pb "github.com/odysseia-greek/plato/proto"
+	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
 )
 
 const standardPort = ":50051"

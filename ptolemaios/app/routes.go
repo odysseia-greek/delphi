@@ -1,8 +1,8 @@
 package app
 
 import (
+	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/ptolemaios/config"
-	"github.com/odysseia-greek/plato/logging"
 	"os"
 	"time"
 )

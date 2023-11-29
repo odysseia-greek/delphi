@@ -1,9 +1,9 @@
 package app
 
 import (
+	"github.com/odysseia-greek/agora/plato/certificates"
+	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/delphi/perikles/config"
-	"github.com/odysseia-greek/plato/certificates"
-	kubernetes "github.com/odysseia-greek/thales"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

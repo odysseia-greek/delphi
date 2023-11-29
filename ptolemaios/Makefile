@@ -9,6 +9,11 @@ vault_certs:
 	kubectl get secret vault-server-tls -o jsonpath="{.data['vault\.ca']}" | base64 -d > /tmp/vault/vault.ca
 	kubectl get secret vault-server-tls -o jsonpath="{.data['vault\.key']}" | base64 -d > /tmp/vault/vault.key
 
+proto:
+	protoc --go_out=. --go_opt=paths=source_relative \
+	--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+	./proto/ptolemaios.proto
+
 dirs:
 	mkdir -p /tmp/vault
 	mkdir -p /tmp/solon

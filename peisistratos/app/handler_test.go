@@ -2,8 +2,8 @@ package app
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/odysseia-greek/diogenes"
-	kubernetes "github.com/odysseia-greek/thales"
+	"github.com/odysseia-greek/agora/diogenes"
+	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
