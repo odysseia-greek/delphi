@@ -1,9 +1,9 @@
 package config
 
 import (
-	"github.com/odysseia-greek/plato/certificates"
-	"github.com/odysseia-greek/plato/config"
-	kubernetes "github.com/odysseia-greek/thales"
+	"github.com/odysseia-greek/agora/plato/certificates"
+	"github.com/odysseia-greek/agora/plato/config"
+	kubernetes "github.com/odysseia-greek/agora/thales"
 )
 
 type Config struct {

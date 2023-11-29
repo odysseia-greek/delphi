@@ -1,10 +1,10 @@
 package config
 
 import (
-	"github.com/odysseia-greek/diogenes"
-	"github.com/odysseia-greek/plato/config"
-	"github.com/odysseia-greek/plato/service"
-	kubernetes "github.com/odysseia-greek/thales"
+	"github.com/odysseia-greek/agora/diogenes"
+	"github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/service"
+	kubernetes "github.com/odysseia-greek/agora/thales"
 )
 
 type Config struct {

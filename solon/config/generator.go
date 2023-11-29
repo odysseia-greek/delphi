@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
-	"github.com/odysseia-greek/aristoteles"
-	elasticmodels "github.com/odysseia-greek/aristoteles/models"
-	"github.com/odysseia-greek/diogenes"
-	"github.com/odysseia-greek/plato/config"
-	"github.com/odysseia-greek/plato/generator"
-	"github.com/odysseia-greek/plato/logging"
-	kubernetes "github.com/odysseia-greek/thales"
+	"github.com/odysseia-greek/agora/aristoteles"
+	elasticmodels "github.com/odysseia-greek/agora/aristoteles/models"
+	"github.com/odysseia-greek/agora/diogenes"
+	"github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/generator"
+	"github.com/odysseia-greek/agora/plato/logging"
+	kubernetes "github.com/odysseia-greek/agora/thales"
 )
 
 const testOverWrite string = "TEST_OVERWRITE"

@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"github.com/odysseia-greek/plato/logging"
+	"github.com/odysseia-greek/agora/plato/logging"
 	"time"
 )
 

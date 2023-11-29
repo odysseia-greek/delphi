@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/vault/api"
-	"github.com/odysseia-greek/diogenes"
-	plato "github.com/odysseia-greek/plato/config"
-	"github.com/odysseia-greek/plato/logging"
-	"github.com/odysseia-greek/thales"
+	"github.com/odysseia-greek/agora/diogenes"
+	plato "github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/agora/thales"
 	"log"
 	"os"
 	"path/filepath"
@@ -65,7 +65,7 @@ func (p *PeisistratosHandler) InitVault() error {
 
 	if p.UnsealMethod != "" {
 		logging.Info("initializing vault with auto unseal")
-		init, err = p.Vault.InitializeAutoUnseal(1)
+		init, err = p.Vault.InitializeAutoUnseal(1, 1)
 		if err != nil {
 			return err
 		}
@@ -143,7 +143,7 @@ func (p *PeisistratosHandler) InitVault() error {
 
 func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) error {
 	rootPath := plato.StringFromEnv(plato.EnvRootTlSDir, plato.DefaultTLSFileLocation)
-	secretPath := filepath.Join(rootPath, plato.VAULT)
+	secretPath := filepath.Join(rootPath, "vault")
 	if p.Env == "LOCAL" {
 		secretPath = "/tmp"
 	}

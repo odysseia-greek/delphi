@@ -1,10 +1,10 @@
 package app
 
 import (
+	"github.com/odysseia-greek/agora/plato/models"
+	"github.com/odysseia-greek/agora/plato/service"
+	kubernetes "github.com/odysseia-greek/agora/thales"
 	configs "github.com/odysseia-greek/delphi/ptolemaios/config"
-	"github.com/odysseia-greek/plato/models"
-	"github.com/odysseia-greek/plato/service"
-	kubernetes "github.com/odysseia-greek/thales"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"

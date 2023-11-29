@@ -2,10 +2,10 @@ package app
 
 import (
 	"fmt"
-	"github.com/odysseia-greek/diogenes"
-	"github.com/odysseia-greek/plato/config"
-	"github.com/odysseia-greek/plato/logging"
-	kubernetes "github.com/odysseia-greek/thales"
+	"github.com/odysseia-greek/agora/diogenes"
+	"github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/logging"
+	kubernetes "github.com/odysseia-greek/agora/thales"
 	"os"
 )
 

@@ -2,8 +2,8 @@ package app
 
 import (
 	"fmt"
-	"github.com/odysseia-greek/plato/logging"
-	"github.com/odysseia-greek/thales/crd/v1alpha"
+	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/agora/thales/crd/v1alpha"
 	"time"
 )
 
@@ -66,7 +66,6 @@ func (p *PeriklesHandler) addClientToMapping(hostName, clientName, kubeType stri
 		KubeType:  kubeType,
 		Namespace: p.Config.Namespace,
 	}
-
 	found := false
 	for i, service := range mapping.Spec.Services {
 		if service.Name == hostName {

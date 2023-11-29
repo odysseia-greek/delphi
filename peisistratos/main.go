@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/peisistratos/app"
-	"github.com/odysseia-greek/plato/logging"
 	"log"
 	"os"
 	"strings"

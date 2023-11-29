@@ -2,11 +2,11 @@ package app
 
 import (
 	"encoding/json"
+	plato "github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/agora/plato/middleware"
+	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/delphi/perikles/config"
-	plato "github.com/odysseia-greek/plato/config"
-	"github.com/odysseia-greek/plato/logging"
-	"github.com/odysseia-greek/plato/middleware"
-	"github.com/odysseia-greek/plato/models"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	v1 "k8s.io/api/apps/v1"
