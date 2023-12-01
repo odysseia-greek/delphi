@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -9,10 +10,12 @@ import (
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/thales"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type PeisistratosHandler struct {
@@ -24,7 +27,7 @@ type PeisistratosHandler struct {
 	Env          string
 	UnsealMethod string
 	Vault        diogenes.Client
-	Kube         thales.KubeClient
+	Kube         *thales.KubeClient
 }
 
 const defaultAdminPolicyName = "solon"
@@ -264,7 +267,10 @@ func (p *PeisistratosHandler) unsealVault(init *api.InitResponse) error {
 
 func (p *PeisistratosHandler) getVaultPodNodes() ([]string, error) {
 	var nodes []string
-	workload, err := p.Kube.Workload().GetStatefulSets(p.Namespace)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	workload, err := p.Kube.AppsV1().StatefulSets(p.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -280,10 +286,11 @@ func (p *PeisistratosHandler) getVaultPodNodes() ([]string, error) {
 
 			}
 
-			// Remove the trailing comma and space
 			labelString = labelString[:len(labelString)-2]
 
-			pods, _ := p.Kube.Workload().GetPodsBySelector(p.Namespace, labelString)
+			pods, _ := p.Kube.CoreV1().Pods(p.Namespace).List(ctx, metav1.ListOptions{
+				LabelSelector: labelString,
+			})
 
 			for _, pod := range pods.Items {
 				nodes = append(nodes, pod.Name)

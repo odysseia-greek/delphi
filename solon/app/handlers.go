@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	elasticmodels "github.com/odysseia-greek/agora/aristoteles/models"
@@ -12,6 +13,7 @@ import (
 	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/delphi/solon/config"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strings"
 	"time"
@@ -161,7 +163,10 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	pod, err := s.Config.Kube.Workload().GetPodByName(s.Config.Namespace, creationRequest.PodName)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	pod, err := s.Config.Kube.CoreV1().Pods(s.Config.Namespace).Get(ctx, creationRequest.PodName, metav1.GetOptions{})
 	if err != nil || !s.isValidAnnotations(pod.Annotations, &creationRequest) {
 		s.handleValidationError(w, "annotations", requestId, fmt.Errorf("annotations requested and found on pod %s did not match", creationRequest.PodName))
 		return

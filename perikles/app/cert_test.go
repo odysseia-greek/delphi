@@ -1,10 +1,13 @@
 package app
 
 import (
+	"context"
 	"github.com/odysseia-greek/agora/plato/certificates"
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/delphi/perikles/config"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 )
 
@@ -27,7 +30,7 @@ func TestCertCreation(t *testing.T) {
 	assert.Nil(t, err)
 
 	t.Run("SecretNewlyCreated", func(t *testing.T) {
-		fakeKube, err := kubernetes.FakeKubeClient(ns)
+		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
 		testConfig := config.Config{
 			Kube:      fakeKube,
@@ -41,7 +44,7 @@ func TestCertCreation(t *testing.T) {
 	})
 
 	t.Run("SecretAlreadyExists", func(t *testing.T) {
-		fakeKube, err := kubernetes.FakeKubeClient(ns)
+		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
 		testConfig := config.Config{
 			Kube:      fakeKube,
@@ -53,7 +56,20 @@ func TestCertCreation(t *testing.T) {
 			"somesecret": []byte("verysecret"),
 		}
 
-		fakeKube.Configuration().CreateSecret(ns, secretName, data)
+		immutable := false
+		secret := &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+			},
+			Immutable: &immutable,
+			Data:      data,
+			Type:      corev1.SecretTypeTLS,
+		}
+		fakeKube.CoreV1().Secrets(ns).Create(context.Background(), secret, metav1.CreateOptions{})
 
 		handler := PeriklesHandler{Config: &testConfig}
 		err = handler.createCert(hosts, 1, secretName)

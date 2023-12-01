@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/odysseia-greek/agora/diogenes v0.1.0
-	github.com/odysseia-greek/agora/plato v0.1.0
-	github.com/odysseia-greek/agora/thales v0.1.3
+	github.com/odysseia-greek/agora/plato v0.1.1
+	github.com/odysseia-greek/agora/thales v0.1.5
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.59.0
 )

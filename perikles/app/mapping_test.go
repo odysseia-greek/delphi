@@ -1,10 +1,12 @@
 package app
 
 import (
+	"context"
 	"github.com/odysseia-greek/agora/plato/certificates"
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/delphi/perikles/config"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
 )
@@ -43,7 +45,7 @@ func TestSettingOfMappings(t *testing.T) {
 	assert.NotNil(t, cert)
 	err = cert.InitCa()
 	assert.Nil(t, err)
-	fakeKube, err := kubernetes.FakeKubeClient(ns)
+	fakeKube := kubernetes.NewFakeKubeClient()
 	assert.Nil(t, err)
 	testConfig := config.Config{
 		Kube:      fakeKube,
@@ -93,8 +95,7 @@ func TestSettingOfMappings(t *testing.T) {
 	})
 
 	t.Run("AddClientToServiceAndToMapping", func(t *testing.T) {
-		fk, err := kubernetes.FakeKubeClient(ns)
-		assert.Nil(t, err)
+		fk := kubernetes.NewFakeKubeClient()
 		handler.Config.Kube = fk
 		sut, err := handler.addClientToMapping(existingServiceName, clientName, kubeType)
 		assert.Nil(t, err)
@@ -112,8 +113,7 @@ func TestCheckMappingForUpdates(t *testing.T) {
 	assert.NotNil(t, cert)
 	err = cert.InitCa()
 	assert.Nil(t, err)
-	fakeKube, err := kubernetes.FakeKubeClient(ns)
-	assert.Nil(t, err)
+	fakeKube := kubernetes.NewFakeKubeClient()
 	testConfig := config.Config{
 		Kube:      fakeKube,
 		Cert:      cert,
@@ -142,7 +142,8 @@ func TestCheckMappingForUpdates(t *testing.T) {
 		_, err := handler.addHostToMapping(serviceName, secretName, kubeType, 1)
 		assert.Nil(t, err)
 
-		err = kubernetes.CreateDeploymentForTest(serviceName, ns, fakeKube)
+		deploy := kubernetes.TestDeploymentObject(serviceName, ns)
+		_, err = fakeKube.AppsV1().Deployments(ns).Create(context.Background(), deploy, metav1.CreateOptions{})
 		assert.Nil(t, err)
 		sut := handler.checkMappingForUpdates()
 		assert.Nil(t, sut)
