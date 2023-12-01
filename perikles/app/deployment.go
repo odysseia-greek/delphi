@@ -1,9 +1,11 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
 	"time"
@@ -119,7 +121,20 @@ func (p *PeriklesHandler) clientFlow(accesses, name, kubeType string) error {
 func (p *PeriklesHandler) restartDeployment(ns, deploymentName string) error {
 	newAnnotation := make(map[string]string)
 	newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)
-	_, err := p.Config.Kube.Workload().UpdateDeploymentViaAnnotation(ns, deploymentName, newAnnotation)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	deployment, err := p.Config.Kube.AppsV1().Deployments(p.Config.Namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	for key, value := range newAnnotation {
+		deployment.Spec.Template.Annotations[key] = value
+	}
+
+	_, err = p.Config.Kube.AppsV1().Deployments(p.Config.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+
 	return err
 }
 

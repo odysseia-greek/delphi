@@ -3,11 +3,9 @@ package app
 import (
 	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/agora/plato/service"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 	configs "github.com/odysseia-greek/delphi/ptolemaios/config"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	"time"
 )
 
 func TestGetOneTimeToken(t *testing.T) {
@@ -73,40 +71,5 @@ func TestGetOneTimeToken(t *testing.T) {
 		sut, err := handler.getOneTimeToken(uuid)
 		assert.NotNil(t, err)
 		assert.Equal(t, "", sut)
-	})
-}
-
-func TestJobExit(t *testing.T) {
-	ns := "odysseia"
-	expectedName := "testpod"
-	duration := 10 * time.Millisecond
-
-	t.Run("Get", func(t *testing.T) {
-		testClient, err := kubernetes.FakeKubeClient(ns)
-		assert.Nil(t, err)
-
-		podSpec := kubernetes.CreatePodObjectWithExit(expectedName, ns)
-		pod, err := testClient.Workload().CreatePod(ns, podSpec)
-		assert.Nil(t, err)
-		assert.Equal(t, pod.Name, expectedName)
-
-		testConfig := configs.Config{
-			Kube:        testClient,
-			FullPodName: expectedName,
-			PodName:     expectedName,
-			Namespace:   ns,
-		}
-
-		handler := PtolemaiosHandler{Config: &testConfig, Duration: duration}
-		jobExit := make(chan bool, 1)
-		go handler.CheckForJobExit(jobExit)
-
-		select {
-
-		case <-jobExit:
-			exitStatus := <-jobExit
-			assert.True(t, exitStatus)
-		}
-
 	})
 }

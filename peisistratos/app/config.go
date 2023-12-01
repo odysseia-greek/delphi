@@ -13,7 +13,7 @@ func CreateNewConfig(env string) (*PeisistratosHandler, error) {
 	healthCheck := true
 	outOfClusterKube := false
 	debugMode := false
-	if env == "LOCAL" || env == "TEST" {
+	if env == "DEVELOPMENT" {
 		healthCheck = false
 		outOfClusterKube = true
 		debugMode = true

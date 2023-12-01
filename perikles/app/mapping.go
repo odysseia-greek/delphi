@@ -12,7 +12,7 @@ const (
 )
 
 func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType string, validity int) (*v1alpha.Mapping, error) {
-	mapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Get(p.Config.CrdName)
+	mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType str
 			service.SecretName = secretName
 			mapping.Spec.Services[i] = service
 			logging.Debug(fmt.Sprintf("updating existing service mapping %s", service.Name))
-			updatedMapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Update(mapping)
+			updatedMapping, err := p.Config.Mapping.Update(mapping)
 			if err != nil {
 				return nil, err
 			}
@@ -47,7 +47,7 @@ func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType str
 	mapping.Spec.Services = append(mapping.Spec.Services, service)
 
 	logging.Debug(fmt.Sprintf("updating new service mapping %s", serviceName))
-	updatedMapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Update(mapping)
+	updatedMapping, err := p.Config.Mapping.Update(mapping)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType str
 }
 
 func (p *PeriklesHandler) addClientToMapping(hostName, clientName, kubeType string) (*v1alpha.Mapping, error) {
-	mapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Get(p.Config.CrdName)
+	mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (p *PeriklesHandler) addClientToMapping(hostName, clientName, kubeType stri
 		mapping.Spec.Services = append(mapping.Spec.Services, service)
 	}
 
-	updatedMapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Update(mapping)
+	updatedMapping, err := p.Config.Mapping.Update(mapping)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (p *PeriklesHandler) loopForMappingUpdates() {
 }
 
 func (p *PeriklesHandler) checkMappingForUpdates() error {
-	mapping, err := p.Config.Kube.V1Alpha1().ServiceMapping().Get(p.Config.CrdName)
+	mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
 	if err != nil {
 		return err
 	}

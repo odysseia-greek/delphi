@@ -10,9 +10,7 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	ns := "test"
-	fakeKube, err := kubernetes.FakeKubeClient(ns)
-	assert.Nil(t, err)
+	fakeKube := kubernetes.NewFakeKubeClient()
 
 	t.Run("CreateConfigForGCP", func(t *testing.T) {
 		ring := "TEST_RING"

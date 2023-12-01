@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/odysseia-greek/agora/plato/certificates"
 	kubernetes "github.com/odysseia-greek/agora/thales"
+	"github.com/odysseia-greek/agora/thales/odysseia"
 	"github.com/odysseia-greek/delphi/perikles/config"
 	"github.com/stretchr/testify/assert"
 	"strings"
@@ -18,11 +19,13 @@ func TestAnnotations(t *testing.T) {
 	assert.NotNil(t, cert)
 	err = cert.InitCa()
 	assert.Nil(t, err)
-	fakeKube, err := kubernetes.FakeKubeClient(ns)
+	fakeKube := kubernetes.NewFakeKubeClient()
+	fakeMapping, err := odysseia.NewFakeServiceMappingImpl()
 	assert.Nil(t, err)
 	crdName := "testCrd"
 	testConfig := config.Config{
 		Kube:      fakeKube,
+		Mapping:   fakeMapping,
 		Cert:      cert,
 		Namespace: ns,
 		CrdName:   crdName,
@@ -39,10 +42,10 @@ func TestAnnotations(t *testing.T) {
 			AnnotationHost:     host,
 			AnnotationValidity: validity,
 		}
-		deployment := kubernetes.CreateAnnotatedDeploymentObject(deploymentName, ns, annotations)
+		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
 		err := handler.checkForAnnotations(*deployment)
 		assert.Nil(t, err)
-		sut, err := fakeKube.V1Alpha1().ServiceMapping().Get("asfasf")
+		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
 		found := false
 		for _, service := range sut.Spec.Services {
@@ -59,12 +62,12 @@ func TestAnnotations(t *testing.T) {
 			AnnotationHost:     host,
 			AnnotationValidity: validity,
 		}
-		deployment := kubernetes.CreateAnnotatedDeploymentObject(deploymentName, ns, annotations)
-		volume := kubernetes.CreatePodSpecVolume(volumeName, secretName)
+		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
+		volume := kubernetes.TestPodSpecVolume(volumeName, secretName)
 		deployment.Spec.Template.Spec.Volumes = volume
 		err := handler.checkForAnnotations(*deployment)
 		assert.Nil(t, err)
-		sut, err := fakeKube.V1Alpha1().ServiceMapping().Get("asfasf")
+		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
 		found := false
 		for _, service := range sut.Spec.Services {
@@ -83,10 +86,10 @@ func TestAnnotations(t *testing.T) {
 			AnnotationValidity:   validity,
 			AnnotationHostSecret: hostSecret,
 		}
-		deployment := kubernetes.CreateAnnotatedDeploymentObject(deploymentName, ns, annotations)
+		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
 		err := handler.checkForAnnotations(*deployment)
 		assert.Nil(t, err)
-		sut, err := fakeKube.V1Alpha1().ServiceMapping().Get("asfasf")
+		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
 		found := false
 		for _, service := range sut.Spec.Services {
@@ -105,10 +108,10 @@ func TestAnnotations(t *testing.T) {
 			AnnotationValidity:   validity,
 			AnnotationHostSecret: hostSecret,
 		}
-		deployment := kubernetes.CreateAnnotatedDeploymentObject(deploymentName, ns, annotations)
+		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
 		err := handler.checkForAnnotations(*deployment)
 		assert.Nil(t, err)
-		sut, err := fakeKube.V1Alpha1().ServiceMapping().Get("asfasf")
+		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
 		found := false
 		for _, service := range sut.Spec.Services {
@@ -125,10 +128,10 @@ func TestAnnotations(t *testing.T) {
 		annotations := map[string]string{
 			AnnotationAccesses: client,
 		}
-		deployment := kubernetes.CreateAnnotatedDeploymentObject(deploymentName, ns, annotations)
+		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
 		err := handler.checkForAnnotations(*deployment)
 		assert.Nil(t, err)
-		sut, err := fakeKube.V1Alpha1().ServiceMapping().Get("asfasf")
+		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
 
 		clients := strings.Split(client, ";")

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"github.com/odysseia-greek/agora/aristoteles"
 	elasticmodels "github.com/odysseia-greek/agora/aristoteles/models"
@@ -9,6 +10,9 @@ import (
 	"github.com/odysseia-greek/agora/plato/generator"
 	"github.com/odysseia-greek/agora/plato/logging"
 	kubernetes "github.com/odysseia-greek/agora/thales"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 )
 
 const testOverWrite string = "TEST_OVERWRITE"
@@ -17,7 +21,7 @@ type Config struct {
 	Vault            diogenes.Client
 	Elastic          aristoteles.Client
 	ElasticCert      []byte
-	Kube             kubernetes.KubeClient
+	Kube             *kubernetes.KubeClient
 	Namespace        string
 	AccessAnnotation string
 	RoleAnnotation   string
@@ -28,7 +32,7 @@ func CreateNewConfig(env string) (*Config, error) {
 	healthCheck := true
 	outOfClusterKube := false
 	debugMode := false
-	if env == "LOCAL" || env == "TEST" {
+	if env == "DEVELOPMENT" {
 		healthCheck = false
 		outOfClusterKube = true
 		debugMode = true
@@ -91,18 +95,48 @@ func (s *Config) CreateTracingUser(update bool) error {
 		"password": []byte(password),
 	}
 
-	secret, _ := s.Kube.Configuration().GetSecret(s.Namespace, secretName)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	secret, err := s.Kube.CoreV1().Secrets(s.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
 
 	if secret == nil {
 		logging.Info(fmt.Sprintf("secret %s does not exist", secretName))
-		err = s.Kube.Configuration().CreateSecret(s.Namespace, secretName, secretData)
+		secret := &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+			},
+			Immutable:  nil,
+			Data:       secretData,
+			StringData: nil,
+			Type:       corev1.SecretTypeOpaque,
+		}
+		_, err = s.Kube.CoreV1().Secrets(s.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
 	} else if update {
 		logging.Info(fmt.Sprintf("secret %s already exists update flag set so updating", secret.Name))
-
-		err = s.Kube.Configuration().UpdateSecret(s.Namespace, secretName, secretData)
+		updatedSecret := &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+			},
+			Immutable:  nil,
+			Data:       secretData,
+			StringData: nil,
+			Type:       corev1.SecretTypeOpaque,
+		}
+		_, err = s.Kube.CoreV1().Secrets(s.Namespace).Update(ctx, updatedSecret, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

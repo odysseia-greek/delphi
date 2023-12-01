@@ -9,7 +9,6 @@ import (
 	"github.com/odysseia-greek/delphi/perikles/config"
 	"github.com/stretchr/testify/assert"
 	"io"
-	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	"net/http"
 	"net/http/httptest"
@@ -35,7 +34,7 @@ func TestValidityFlow(t *testing.T) {
 	arJsonFilePath := filepath.Join("../fixture", "ar.json")
 	jsonFile, err := os.Open(arJsonFilePath)
 	assert.Nil(t, err)
-	arJson, err := ioutil.ReadAll(jsonFile)
+	arJson, err := io.ReadAll(jsonFile)
 	assert.Nil(t, err)
 
 	cert, err := certificates.NewCertGeneratorClient(organizations, validityCa)
@@ -45,7 +44,7 @@ func TestValidityFlow(t *testing.T) {
 	assert.Nil(t, err)
 
 	t.Run("EmptyBody", func(t *testing.T) {
-		fakeKube, err := kubernetes.FakeKubeClient(ns)
+		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
 		testConfig := config.Config{
 			Kube:      fakeKube,
@@ -87,7 +86,7 @@ func TestValidityFlow(t *testing.T) {
 		arNilJsonPath := filepath.Join("../fixture", "arNil.json")
 		file, err := os.Open(arNilJsonPath)
 		assert.Nil(t, err)
-		arNilJson, err := ioutil.ReadAll(file)
+		arNilJson, err := io.ReadAll(file)
 		assert.Nil(t, err)
 		testConfig := config.Config{
 			Kube:      nil,

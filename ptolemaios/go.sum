@@ -122,8 +122,10 @@ github.com/odysseia-greek/agora/diogenes v0.1.0 h1:Jr25P/L8p7sr1NStiSDc8FECcQFgI
 github.com/odysseia-greek/agora/diogenes v0.1.0/go.mod h1:nd8HWflnhxPqX/nfxbP3oZUt9bZvcIp27m5w4+jO3Yw=
 github.com/odysseia-greek/agora/plato v0.1.0 h1:2muXot82Xnu9XY83CtjKVXM9Yeo4/zd1lTNhWu/c7cU=
 github.com/odysseia-greek/agora/plato v0.1.0/go.mod h1:4W5qe+Uc6iT0XQ2tynan1tsbmg22BbhGTWAYeuMtkIk=
+github.com/odysseia-greek/agora/plato v0.1.1/go.mod h1:3PsoK9qGVARvhz7Xao1LtI8GK0/rOG0eMEeDfSJLNjQ=
 github.com/odysseia-greek/agora/thales v0.1.3 h1:j0tnp9SdJjFzCpmbwh0ccovw/pI0teCj6f6zbCdu9pw=
 github.com/odysseia-greek/agora/thales v0.1.3/go.mod h1:Zp68gjmf18wMz1CEoD6OVzAN6TuEmXFHyILUOZnkmdg=
+github.com/odysseia-greek/agora/thales v0.1.5/go.mod h1:0T1WxTsYq8C6O01Y0XaMR9ppJ3IbcZpWYaHUyIjR/HA=
 github.com/onsi/ginkgo/v2 v2.9.4 h1:xR7vG4IXt5RWx6FfIjyAtsoMAtnc3C/rFXBBd2AjZwE=
 github.com/onsi/gomega v1.27.6 h1:ENqfyGeS5AX/rlXDd/ETokDz93u0YufY1Pgxuy/PvWE=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

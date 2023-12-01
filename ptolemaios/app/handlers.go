@@ -11,12 +11,11 @@ import (
 	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"time"
+	"os"
 )
 
 type PtolemaiosHandler struct {
-	Config   *config.Config
-	Duration time.Duration
+	Config *config.Config
 	pb.UnimplementedPtolemaiosServer
 }
 
@@ -114,14 +113,18 @@ func (p *PtolemaiosHandler) GetSecretNamed(ctx context.Context, named *pb.VaultR
 	return &elasticModel, nil
 }
 
+func (p *PtolemaiosHandler) ShutDown(ctx context.Context, code *pb.ShutDownRequest) (*pb.ShutDownResponse, error) {
+	logging.Debug(fmt.Sprintf("got code: %s", code))
+	logging.Debug("Received shutdown request. Performing cleanup...")
+	os.Exit(0)
+
+	return &pb.ShutDownResponse{}, nil
+}
+
 func (p *PtolemaiosHandler) Health(context.Context, *pb.HealthRequest) (*pb.HealthResponse, error) {
 	return &pb.HealthResponse{
 		Health: true,
 	}, nil
-}
-
-func (p *PtolemaiosHandler) Shutdown(context.Context, *pb.ShutDownRequest) (*pb.ShutDownResponse, error) {
-	return &pb.ShutDownResponse{}, fmt.Errorf("not implemented yet")
 }
 
 func (p *PtolemaiosHandler) getOneTimeToken(traceId string) (string, error) {
@@ -140,30 +143,4 @@ func (p *PtolemaiosHandler) getOneTimeToken(traceId string) (string, error) {
 
 	logging.Debug(fmt.Sprintf("found token: %s", tokenModel.Token))
 	return tokenModel.Token, nil
-}
-
-func (p *PtolemaiosHandler) CheckForJobExit(exitChannel chan bool) {
-	var counter int
-	for {
-		counter++
-		logging.Debug(fmt.Sprintf("run number: %d", counter))
-		time.Sleep(p.Duration)
-		pod, err := p.Config.Kube.Workload().GetPodByName(p.Config.Namespace, p.Config.FullPodName)
-		if err != nil {
-			logging.Error(fmt.Sprintf("error getting kube response %s", err.Error()))
-			continue
-		}
-
-		for _, container := range pod.Status.ContainerStatuses {
-			if container.Name == p.Config.PodName {
-				if container.State.Terminated == nil {
-					logging.Debug(fmt.Sprintf("%s not done yet", container.Name))
-					continue
-				}
-				if container.State.Terminated.ExitCode == 0 {
-					exitChannel <- true
-				}
-			}
-		}
-	}
 }

@@ -4,13 +4,11 @@ import (
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/service"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 )
 
 type Config struct {
 	HttpClients service.OdysseiaClient
 	Vault       diogenes.Client
-	Kube        kubernetes.KubeClient
 	PodName     string
 	Namespace   string
 	RunOnce     bool
@@ -20,7 +18,7 @@ type Config struct {
 func CreateNewConfig(env string) (*Config, error) {
 	healthCheck := true
 	debugMode := false
-	if env == "LOCAL" || env == "TEST" {
+	if env == "DEVELOPMENT" {
 		healthCheck = false
 		debugMode = true
 	}
@@ -35,11 +33,6 @@ func CreateNewConfig(env string) (*Config, error) {
 		return nil, err
 	}
 
-	kube, err := kubernetes.CreateKubeClient(healthCheck)
-	if err != nil {
-		return nil, err
-	}
-
 	podName := config.ParsedPodNameFromEnv()
 	fullPodName := config.StringFromEnv(config.EnvPodName, config.DefaultPodname)
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
@@ -48,7 +41,6 @@ func CreateNewConfig(env string) (*Config, error) {
 	return &Config{
 		HttpClients: http,
 		Vault:       vault,
-		Kube:        kube,
 		PodName:     podName,
 		Namespace:   ns,
 		RunOnce:     runOnce,

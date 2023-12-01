@@ -3,11 +3,13 @@ package config
 import (
 	"github.com/odysseia-greek/agora/plato/certificates"
 	"github.com/odysseia-greek/agora/plato/config"
-	kubernetes "github.com/odysseia-greek/agora/thales"
+	"github.com/odysseia-greek/agora/thales"
+	"github.com/odysseia-greek/agora/thales/odysseia"
 )
 
 type Config struct {
-	Kube      kubernetes.KubeClient
+	Kube      *thales.KubeClient
+	Mapping   odysseia.ServiceMapping
 	Cert      certificates.CertClient
 	Namespace string
 	CrdName   string
@@ -16,17 +18,22 @@ type Config struct {
 
 func CreateNewConfig(env string) (*Config, error) {
 	healthCheck := true
-	if env == "LOCAL" || env == "TEST" {
+	if env == "DEVELOPMENT" {
 		healthCheck = false
 	}
 
-	kube, err := kubernetes.CreateKubeClient(healthCheck)
+	kube, err := thales.CreateKubeClient(healthCheck)
 	if err != nil {
 		return nil, err
 	}
 
 	org := []string{
 		"odysseia",
+	}
+
+	mapping, err := odysseia.NewServiceMappingImpl(kube.RestConfig())
+	if err != nil {
+		return nil, err
 	}
 
 	cert, err := config.CreateCertClient(org)
@@ -44,5 +51,6 @@ func CreateNewConfig(env string) (*Config, error) {
 		Namespace: ns,
 		CrdName:   crd,
 		TLSFiles:  tlsFiles,
+		Mapping:   mapping,
 	}, nil
 }
