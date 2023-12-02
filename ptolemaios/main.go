@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/ptolemaios/app"
-	"github.com/odysseia-greek/delphi/ptolemaios/config"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -30,24 +28,24 @@ func main() {
 
 	env := os.Getenv("ENV")
 
-	cfg, err := config.CreateNewConfig(env)
+	ambassador, err := app.CreateNewConfig(env)
 	if err != nil {
-		log.Fatal("could not parse config")
+		log.Fatalf("error creating TraceServiceClient: %v", err)
 	}
 
-	handler := app.CreateHandler(cfg)
-
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s", port))
+	listener, err := net.Listen("tcp", port)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("failed to listen: %v", err))
+		log.Fatalf("failed to listen: %v", err)
 	}
 
-	logging.Info(fmt.Sprintf("%s : %s", "setting up rpc service on", port))
+	var server *grpc.Server
 
-	s := grpc.NewServer()
-	pb.RegisterPtolemaiosServer(s, handler)
-	logging.Info(fmt.Sprintf("server listening at %v", lis.Addr()))
-	if err := s.Serve(lis); err != nil {
-		log.Fatal(fmt.Sprintf("failed to serve: %v", err))
+	server = grpc.NewServer()
+
+	pb.RegisterPtolemaiosServer(server, ambassador)
+
+	log.Printf("Server listening on %s", port)
+	if err := server.Serve(listener); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }

@@ -1,21 +1,11 @@
-package config
+package app
 
 import (
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/config"
-	"github.com/odysseia-greek/agora/plato/service"
 )
 
-type Config struct {
-	HttpClients service.OdysseiaClient
-	Vault       diogenes.Client
-	PodName     string
-	Namespace   string
-	RunOnce     bool
-	FullPodName string
-}
-
-func CreateNewConfig(env string) (*Config, error) {
+func CreateNewConfig(env string) (*AmbassadorServiceImpl, error) {
 	healthCheck := true
 	debugMode := false
 	if env == "DEVELOPMENT" {
@@ -36,14 +26,12 @@ func CreateNewConfig(env string) (*Config, error) {
 	podName := config.ParsedPodNameFromEnv()
 	fullPodName := config.StringFromEnv(config.EnvPodName, config.DefaultPodname)
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
-	runOnce := config.BoolFromEnv(config.EnvRunOnce)
 
-	return &Config{
+	return &AmbassadorServiceImpl{
 		HttpClients: http,
 		Vault:       vault,
 		PodName:     podName,
 		Namespace:   ns,
-		RunOnce:     runOnce,
 		FullPodName: fullPodName,
 	}, nil
 }
