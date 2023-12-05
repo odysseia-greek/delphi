@@ -1,0 +1,81 @@
+package app
+
+import (
+	"context"
+	"encoding/base64"
+	"fmt"
+	"github.com/odysseia-greek/agora/plato/certificates"
+	"github.com/odysseia-greek/agora/plato/logging"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
+)
+
+const (
+	TLSNAME = "tls"
+)
+
+func (k *KleisthenesHandler) perikles() error {
+	logging.Debug("Setting up TLS for Perikles")
+	secretName := "perikles-certs"
+
+	validity := 3650
+
+	orgName := []string{
+		k.namespace,
+	}
+
+	hosts := []string{
+		fmt.Sprintf("%s", k.periklesService),
+		fmt.Sprintf("%s.%s", k.periklesService, k.namespace),
+		fmt.Sprintf("%s.%s.svc", k.periklesService, k.namespace),
+		fmt.Sprintf("%s.%s.svc.cluster.local", k.periklesService, k.namespace),
+	}
+
+	certClient, err := certificates.NewCertGeneratorClient(orgName, validity)
+	if err != nil {
+		return err
+	}
+	err = certClient.InitCa()
+	if err != nil {
+		return err
+	}
+
+	crt, key, _ := certClient.GenerateKeyAndCertSet(hosts, validity)
+
+	certData := make(map[string][]byte)
+	certData[fmt.Sprintf("%s.key", TLSNAME)] = key
+	certData[fmt.Sprintf("%s.crt", TLSNAME)] = crt
+
+	err = k.createSecret(secretName, certData, corev1.SecretTypeTLS)
+	if err != nil {
+		return err
+	}
+
+	caBundle := base64.StdEncoding.EncodeToString(crt)
+	webhookName := "perikles-webhook"
+	err = k.updateWebhookCA(webhookName, caBundle)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (k *KleisthenesHandler) updateWebhookCA(webhookName, caBundle string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	logging.Debug(fmt.Sprintf("updating webhook: %s", webhookName))
+
+	webhook, err := k.Kube.AdmissionRegistrationV1().ValidatingWebhookConfigurations().Get(ctx, webhookName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	webhook.Webhooks[0].ClientConfig.CABundle = []byte(caBundle)
+	_, err = k.Kube.AdmissionRegistrationV1().ValidatingWebhookConfigurations().Update(ctx, webhook, metav1.UpdateOptions{})
+
+	logging.Debug(fmt.Sprintf("updated webhook: %s", webhookName))
+	return err
+}
