@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=Peisistratos
+	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=Kleisthenes
 	logging.System(`
  __  _  _        ___  ____ _____ ______  __ __    ___  ____     ___  _____
 |  |/ ]| |      /  _]|    / ___/|      ||  |  |  /  _]|    \   /  _]/ ___/

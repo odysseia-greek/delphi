@@ -7,9 +7,10 @@ Delphi holds all services that need access to vault
     - [Solon - Σόλων](#solon---σόλων)
     - [Perikles - Περικλῆς](#perikles---περικλῆς)
 - [Init](#init)
-  - [Drakon - Δράκων](#drakon---δράκων)
-  - [Peisistratos - Πεισίστρατος](#peisistratos---πεισίστρατος)
-  - [Periandros - Περίανδρος](#periandros---περίανδρος)
+    - [Drakon - Δράκων](#drakon---δράκων)
+    - [Kleisthenes - Κλεισθένης](#kleisthenes---κλεισθένης)
+    - [Peisistratos - Πεισίστρατος](#peisistratos---πεισίστρατος)
+    - [Periandros - Περίανδρος](#periandros---περίανδρος)
 - [Sidecar](#sidecar)
     - [Ptolemaios - Πτολεμαῖος](ptolemaios---πτολεμαῖος)
 
@@ -40,6 +41,14 @@ Solon is most famous for his role as the great Athenian lawgiver following the r
 <img src="https://www.greekboston.com/wp-content/uploads/2014/12/draco-720x484.jpg" alt="Drakon" width="200"/>
 
 Drakon is one of the ancient lawgivers in Athens.
+
+### Kleisthenes - Κλεισθένης
+
+ὀστρακισμός - ostracism, introduced by Kleisthenes
+
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Cleisthenes.jpg/532px-Cleisthenes.jpg" alt="Cleisthenes" width="200"/>
+
+Fundamental to the forming of the Athenian democracy. The lawgiver Kleisthenes is tasked with laying the foundation upon which Perikles can later flourish. 
 
 ### Peisistratos - Πεισίστρατος
 
