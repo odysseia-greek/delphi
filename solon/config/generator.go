@@ -12,6 +12,7 @@ import (
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 	"time"
 )
 
@@ -97,14 +98,47 @@ func (s *Config) CreateTracingUser(update bool) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
-	secret, err := s.Kube.CoreV1().Secrets(s.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+
+	secretExists := true
+	_, err = s.Kube.CoreV1().Secrets(s.Namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "not found") {
+			secretExists = false
+		}
 	}
 
-	if secret == nil {
+	if secretExists {
+		logging.Info(fmt.Sprintf("secret %s already exists", secretName))
+		if update {
+			logging.Info(fmt.Sprintf("secret %s already exists update flag set so updating", secretName))
+			updatedSecret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: secretName,
+				},
+				Immutable:  nil,
+				Data:       secretData,
+				StringData: nil,
+				Type:       corev1.SecretTypeOpaque,
+			}
+			_, err = s.Kube.CoreV1().Secrets(s.Namespace).Update(ctx, updatedSecret, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		} else {
+			logging.Info(fmt.Sprintf("secret %s already exists so no action required", secretName))
+			return nil
+		}
+
+	}
+
+	if !secretExists {
 		logging.Info(fmt.Sprintf("secret %s does not exist", secretName))
-		secret := &corev1.Secret{
+
+		scr := &corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Secret",
 				APIVersion: "v1",
@@ -117,32 +151,10 @@ func (s *Config) CreateTracingUser(update bool) error {
 			StringData: nil,
 			Type:       corev1.SecretTypeOpaque,
 		}
-		_, err = s.Kube.CoreV1().Secrets(s.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+		_, err = s.Kube.CoreV1().Secrets(s.Namespace).Create(ctx, scr, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
-	} else if update {
-		logging.Info(fmt.Sprintf("secret %s already exists update flag set so updating", secret.Name))
-		updatedSecret := &corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: secretName,
-			},
-			Immutable:  nil,
-			Data:       secretData,
-			StringData: nil,
-			Type:       corev1.SecretTypeOpaque,
-		}
-		_, err = s.Kube.CoreV1().Secrets(s.Namespace).Update(ctx, updatedSecret, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-	} else {
-		logging.Info(fmt.Sprintf("secret %s already exists so no action required", secretName))
-		return nil
 	}
 
 	putUser := elasticmodels.CreateUserRequest{

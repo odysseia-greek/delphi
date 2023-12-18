@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/kleisthenes/app"
+	"github.com/odysseia-greek/delphi/kleisthenes/founder"
 	"log"
 	"os"
 	"strings"
@@ -29,7 +29,7 @@ func main() {
 
 	env := os.Getenv("ENV")
 
-	handler, err := app.CreateNewConfig(env)
+	handler, err := founder.CreateNewConfig(env)
 	if err != nil {
 		log.Fatal("death has found me")
 	}

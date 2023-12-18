@@ -20,6 +20,7 @@ github.com/google/go-cmp v0.5.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/go-cmp v0.5.7/go.mod h1:n+brtR0CgQNWTVd5ZUFpTBC8YFBDLK/h/bpaJ8/DtOE=
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
+github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/errwrap v1.1.0 h1:OxrOeh75EUXMY8TBjag2fzXGZ40LB6IKw45YeGUDY2I=
 github.com/hashicorp/errwrap v1.1.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
@@ -72,10 +73,10 @@ github.com/mitchellh/go-wordwrap v1.0.0/go.mod h1:ZXFpozHsX6DPmq2I0TCekCxypsnAUb
 github.com/mitchellh/mapstructure v1.4.1/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
-github.com/odysseia-greek/agora/diogenes v0.1.0 h1:Jr25P/L8p7sr1NStiSDc8FECcQFgIf291z3wxa2OPZc=
-github.com/odysseia-greek/agora/diogenes v0.1.0/go.mod h1:nd8HWflnhxPqX/nfxbP3oZUt9bZvcIp27m5w4+jO3Yw=
-github.com/odysseia-greek/agora/plato v0.1.1 h1:0XAmBTwhZq+e/D+hT6W4a1ouWUOHN4uM4W6ceGTkbc4=
-github.com/odysseia-greek/agora/plato v0.1.1/go.mod h1:3PsoK9qGVARvhz7Xao1LtI8GK0/rOG0eMEeDfSJLNjQ=
+github.com/odysseia-greek/agora/diogenes v0.1.4 h1:zaii31bCdRSuraRJyi1bHOAkX64anMlPa9kJzpuItLE=
+github.com/odysseia-greek/agora/diogenes v0.1.4/go.mod h1:nd8HWflnhxPqX/nfxbP3oZUt9bZvcIp27m5w4+jO3Yw=
+github.com/odysseia-greek/agora/plato v0.1.4 h1:TUkckJ83URgUV4uXg1WcpiW658WU1xEV6b5goTG0AC0=
+github.com/odysseia-greek/agora/plato v0.1.4/go.mod h1:8HAbEc1qo3ixs4KlbwRmgzsXyPbkX7RAwTxdUFZpiCU=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=

@@ -7,9 +7,8 @@ import (
 	"github.com/gorilla/mux"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/solon/app"
 	"github.com/odysseia-greek/delphi/solon/config"
-	"io/ioutil"
+	"github.com/odysseia-greek/delphi/solon/lawgiver"
 	"log"
 	"net/http"
 	"os"
@@ -39,9 +38,9 @@ func main() {
 	}
 
 	logging.System("creating tracing user at startup")
-	err = solonConfig.CreateTracingUser(false)
+	err = solonConfig.CreateTracingUser(true)
 
-	srv := app.InitRoutes(*solonConfig)
+	srv := lawgiver.InitRoutes(*solonConfig)
 	logging.System(fmt.Sprintf("%s : %v", "TLS enabled", solonConfig.TLSEnabled))
 	logging.System(fmt.Sprintf("%s : %s", "running on port", port))
 
@@ -51,7 +50,7 @@ func main() {
 			logging.Error("rootpath is empty no certs can be loaded")
 		}
 		fp := filepath.Join(rootPath, "solon", "tls.pem")
-		caFromFile, _ := ioutil.ReadFile(fp)
+		caFromFile, _ := os.ReadFile(fp)
 		ca := x509.NewCertPool()
 		ca.AppendCertsFromPEM(caFromFile)
 		httpsServer := createTlSConfig(port, ca, srv)

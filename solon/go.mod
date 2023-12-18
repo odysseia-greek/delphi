@@ -1,14 +1,17 @@
 module github.com/odysseia-greek/delphi/solon
 
-go 1.20
+go 1.21
 
 require (
+	github.com/google/uuid v1.4.0
 	github.com/gorilla/mux v1.8.1
 	github.com/odysseia-greek/agora/aristoteles v0.1.1
-	github.com/odysseia-greek/agora/diogenes v0.1.0
-	github.com/odysseia-greek/agora/plato v0.1.1
-	github.com/odysseia-greek/agora/thales v0.1.5
+	github.com/odysseia-greek/agora/diogenes v0.1.4
+	github.com/odysseia-greek/agora/plato v0.1.4
+	github.com/odysseia-greek/agora/thales v0.1.7
 	github.com/stretchr/testify v1.8.4
+	k8s.io/api v0.28.4
+	k8s.io/apimachinery v0.28.4
 )
 
 require (
@@ -31,7 +34,6 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.4.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -78,9 +80,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.28.4 // indirect
 	k8s.io/apiextensions-apiserver v0.28.4 // indirect
-	k8s.io/apimachinery v0.28.4 // indirect
 	k8s.io/cli-runtime v0.28.4 // indirect
 	k8s.io/client-go v0.28.4 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect

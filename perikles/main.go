@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/perikles/app"
+	"github.com/odysseia-greek/delphi/perikles/architect"
 	"github.com/odysseia-greek/delphi/perikles/config"
 	"log"
 	"net/http"
@@ -25,7 +25,16 @@ func main() {
 		port = standardPort
 	}
 	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=PERIKLES
-	logging.System("\n ____   ___  ____   ____  __  _  _        ___  _____\n|    \\ /  _]|    \\ |    ||  |/ ]| |      /  _]/ ___/\n|  o  )  [_ |  D  ) |  | |  ' / | |     /  [_(   \\_ \n|   _/    _]|    /  |  | |    \\ | |___ |    _]\\__  |\n|  | |   [_ |    \\  |  | |     ||     ||   [_ /  \\ |\n|  | |     ||  .  \\ |  | |  .  ||     ||     |\\    |\n|__| |_____||__|\\_||____||__|\\_||_____||_____| \\___|\n                                                    \n")
+	logging.System(`
+ ____   ___  ____   ____  __  _  _        ___  _____
+|    \ /  _]|    \ |    ||  |/ ]| |      /  _]/ ___/
+|  o  )  [_ |  D  ) |  | |  ' / | |     /  [_(   \_ 
+|   _/    _]|    /  |  | |    \ | |___ |    _]\__  |
+|  | |   [_ |    \  |  | |     ||     ||   [_ /  \ |
+|  | |     ||  .  \ |  | |  .  ||     ||     |\    |
+|__| |_____||__|\_||____||__|\_||_____||_____| \___|
+                                                    
+`)
 	logging.System(strings.Repeat("~", 37))
 	logging.System("\"τόν γε σοφώτατον οὐχ ἁμαρτήσεται σύμβουλον ἀναμείνας χρόνον.\"")
 	logging.System("\"he would yet do full well to wait for that wisest of all counsellors, Time.\"")
@@ -38,7 +47,7 @@ func main() {
 		log.Fatal("death has found me")
 	}
 
-	handler := app.PeriklesHandler{Config: periklesConfig}
+	handler := architect.PeriklesHandler{Config: periklesConfig}
 
 	logging.Debug("init for CA started...")
 	err = handler.Config.Cert.InitCa()
@@ -49,7 +58,7 @@ func main() {
 	logging.Debug("CA created")
 
 	logging.Debug("creating CRD...")
-	created, err := handler.Config.Kube.V1Alpha1().ServiceMapping().CreateInCluster()
+	created, err := handler.Config.Mapping.CreateInCluster()
 	if err != nil {
 		logging.Error(err.Error())
 	}
@@ -60,14 +69,14 @@ func main() {
 		logging.Debug("CRD not created, it might already exist")
 	}
 
-	_, err = handler.Config.Kube.V1Alpha1().ServiceMapping().Get(periklesConfig.CrdName)
+	_, err = handler.Config.Mapping.Get(periklesConfig.CrdName)
 	if err != nil {
-		mapping, err := handler.Config.Kube.V1Alpha1().ServiceMapping().Parse(nil, periklesConfig.CrdName, periklesConfig.Namespace)
+		mapping, err := handler.Config.Mapping.Parse(nil, periklesConfig.CrdName, periklesConfig.Namespace)
 		if err != nil {
 			logging.Error(err.Error())
 		}
 
-		createdCrd, err := handler.Config.Kube.V1Alpha1().ServiceMapping().Create(mapping)
+		createdCrd, err := handler.Config.Mapping.Create(mapping)
 		if err != nil {
 			logging.Error(err.Error())
 		}
@@ -77,7 +86,7 @@ func main() {
 	}
 
 	logging.Debug("init routes")
-	srv := app.InitRoutes(*periklesConfig)
+	srv := architect.InitRoutes(*periklesConfig)
 
 	cfg := &tls.Config{
 		MinVersion:               tls.VersionTLS12,

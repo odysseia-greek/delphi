@@ -105,8 +105,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/odysseia-greek/agora/plato v0.1.1 h1:0XAmBTwhZq+e/D+hT6W4a1ouWUOHN4uM4W6ceGTkbc4=
 github.com/odysseia-greek/agora/plato v0.1.1/go.mod h1:3PsoK9qGVARvhz7Xao1LtI8GK0/rOG0eMEeDfSJLNjQ=
-github.com/odysseia-greek/agora/thales v0.1.5 h1:jy35VRKTL4zwFGw5r96ginG798d+ftEZZw/VOixOMwI=
-github.com/odysseia-greek/agora/thales v0.1.5/go.mod h1:0T1WxTsYq8C6O01Y0XaMR9ppJ3IbcZpWYaHUyIjR/HA=
+github.com/odysseia-greek/agora/thales v0.1.7 h1:1QVYlp6Y9+iF2gPBEvol0tAOtaOdJjby4iwgu6dT8K0=
+github.com/odysseia-greek/agora/thales v0.1.7/go.mod h1:0T1WxTsYq8C6O01Y0XaMR9ppJ3IbcZpWYaHUyIjR/HA=
 github.com/onsi/ginkgo/v2 v2.9.4 h1:xR7vG4IXt5RWx6FfIjyAtsoMAtnc3C/rFXBBd2AjZwE=
 github.com/onsi/gomega v1.27.6 h1:ENqfyGeS5AX/rlXDd/ETokDz93u0YufY1Pgxuy/PvWE=
 github.com/peterbourgon/diskv v2.0.1+incompatible h1:UBdAOUP5p4RWqPBg048CAvpKN+vxiaj6gdUUzhl4XmI=

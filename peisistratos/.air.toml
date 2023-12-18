@@ -1,0 +1,8 @@
+root = "/app"
+
+[build]
+cmd = 'go build -gcflags "all=-N -l" github.com/odysseia-greek/delphi/peisistratos .'
+bin = "/app/peisistratos"
+full_bin = "dlv --listen=:2345 --headless=true --api-version=2 --accept-multiclient exec /app/peisistratos"
+watch = ["./..."]
+include_ext = ["go", "tpl", "tmpl", "html"]
