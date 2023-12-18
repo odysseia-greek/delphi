@@ -135,23 +135,26 @@ func (s *Config) CreateTracingUser(update bool) error {
 
 	}
 
-	logging.Info(fmt.Sprintf("secret %s does not exist", secretName))
-	scr := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-		},
-		Immutable:  nil,
-		Data:       secretData,
-		StringData: nil,
-		Type:       corev1.SecretTypeOpaque,
-	}
-	_, err = s.Kube.CoreV1().Secrets(s.Namespace).Create(ctx, scr, metav1.CreateOptions{})
-	if err != nil {
-		return err
+	if !secretExists {
+		logging.Info(fmt.Sprintf("secret %s does not exist", secretName))
+
+		scr := &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+			},
+			Immutable:  nil,
+			Data:       secretData,
+			StringData: nil,
+			Type:       corev1.SecretTypeOpaque,
+		}
+		_, err = s.Kube.CoreV1().Secrets(s.Namespace).Create(ctx, scr, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
 	}
 
 	putUser := elasticmodels.CreateUserRequest{

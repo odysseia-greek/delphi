@@ -53,7 +53,7 @@ func (k *KleisthenesHandler) perikles() error {
 		return err
 	}
 
-	err = k.createSecret(secretName, certData, corev1.SecretTypeOpaque)
+	err = k.createSecret(secretName, certData, corev1.SecretTypeOpaque, true)
 	if err != nil {
 		return err
 	}

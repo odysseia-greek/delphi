@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func (k *KleisthenesHandler) createSecret(secretName string, data map[string][]byte, secretType corev1.SecretType) error {
+func (k *KleisthenesHandler) createSecret(secretName string, data map[string][]byte, secretType corev1.SecretType, delete bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
@@ -22,11 +22,15 @@ func (k *KleisthenesHandler) createSecret(secretName string, data map[string][]b
 		}
 	}
 
-	if secretExists {
+	if secretExists && delete {
+		logging.Info(fmt.Sprintf("secret %s exists and will be deleted", secretName))
 		err = k.Kube.CoreV1().Secrets(k.namespace).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
+	} else if secretExists && !delete {
+		logging.Info(fmt.Sprintf("secret %s exists but wont be deleted", secretName))
+		return nil
 	}
 
 	logging.Info(fmt.Sprintf("secret %s does not exist", secretName))

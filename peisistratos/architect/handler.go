@@ -25,22 +25,36 @@ type PeisistratosHandler struct {
 	Shares       int
 	Threshold    int
 	Env          string
-	UnsealMethod string
 	Vault        diogenes.Client
 	Kube         *thales.KubeClient
+	UnsealMethod string
 }
 
-const defaultAdminPolicyName = "solon"
-const defaultUserPolicyName = "ptolemaios"
-const gcp = "gcp"
+const (
+	defaultAdminPolicyName     = "solon"
+	defaultUserPolicyName      = "ptolemaios"
+	gcp                        = "gcp"
+	defaultConfigMapAnnotation = "unsealprovider.peisistratos"
+)
 
 var (
 	//go:embed hcl/policies
 	embedPolicies embed.FS
 )
 
+type UnsealConfig interface{}
+
+type GCPConfig struct {
+	KeyRing   string
+	CryptoKey string
+	Location  string
+}
+
+type AzureConfig struct {
+}
+
 func (p *PeisistratosHandler) InitVault() error {
-	logging.Debug("init for vault in container started")
+	logging.Debug("init for vault in container start")
 
 	status, err := p.Vault.Status()
 	if err != nil {
@@ -65,6 +79,11 @@ func (p *PeisistratosHandler) InitVault() error {
 	}
 
 	var init *api.InitResponse
+
+	err = p.determineUnsealMethod()
+	if err != nil {
+		logging.Debug("could not determine unseal method")
+	}
 
 	if p.UnsealMethod != "" {
 		logging.Info("initializing vault with auto unseal")
@@ -139,6 +158,26 @@ func (p *PeisistratosHandler) InitVault() error {
 	if err != nil {
 		return err
 
+	}
+
+	return nil
+}
+
+func (p *PeisistratosHandler) determineUnsealMethod() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	cfgMaps, err := p.Kube.CoreV1().ConfigMaps(p.Namespace).List(ctx, metav1.ListOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	for _, cfgMap := range cfgMaps.Items {
+		if value, exists := cfgMap.Annotations[defaultConfigMapAnnotation]; exists {
+			p.UnsealMethod = value
+			return nil
+		}
 	}
 
 	return nil
@@ -299,17 +338,6 @@ func (p *PeisistratosHandler) getVaultPodNodes() ([]string, error) {
 	}
 
 	return nodes, nil
-}
-
-type UnsealConfig interface{}
-
-type GCPConfig struct {
-	KeyRing   string
-	CryptoKey string
-	Location  string
-}
-
-type AzureConfig struct {
 }
 
 func createUnsealConfig(provider string) UnsealConfig {
