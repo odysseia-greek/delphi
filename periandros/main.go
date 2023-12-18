@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/periandros/app"
 	"github.com/odysseia-greek/delphi/periandros/config"
+	"github.com/odysseia-greek/delphi/periandros/initiator"
 	"log"
 	"os"
 	"strings"
@@ -30,7 +30,7 @@ func main() {
 
 	duration := 1 * time.Second
 	timeOut := 5 * time.Minute
-	handler := app.PeriandrosHandler{Config: periandrosConfig, Duration: duration, Timeout: timeOut}
+	handler := initiator.PeriandrosHandler{Config: periandrosConfig, Duration: duration, Timeout: timeOut}
 
 	created, err := handler.CreateUser()
 	if err != nil {

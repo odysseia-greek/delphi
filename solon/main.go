@@ -7,8 +7,8 @@ import (
 	"github.com/gorilla/mux"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/solon/app"
 	"github.com/odysseia-greek/delphi/solon/config"
+	"github.com/odysseia-greek/delphi/solon/lawgiver"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -41,7 +41,7 @@ func main() {
 	logging.System("creating tracing user at startup")
 	err = solonConfig.CreateTracingUser(false)
 
-	srv := app.InitRoutes(*solonConfig)
+	srv := lawgiver.InitRoutes(*solonConfig)
 	logging.System(fmt.Sprintf("%s : %v", "TLS enabled", solonConfig.TLSEnabled))
 	logging.System(fmt.Sprintf("%s : %s", "running on port", port))
 

@@ -1,8 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/ptolemaios/app"
+	"github.com/odysseia-greek/delphi/ptolemaios/diplomat"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -28,7 +29,7 @@ func main() {
 
 	env := os.Getenv("ENV")
 
-	ambassador, err := app.CreateNewConfig(env)
+	ambassador, err := diplomat.CreateNewConfig(env)
 	if err != nil {
 		log.Fatalf("error creating TraceServiceClient: %v", err)
 	}
@@ -44,7 +45,7 @@ func main() {
 
 	pb.RegisterPtolemaiosServer(server, ambassador)
 
-	log.Printf("Server listening on %s", port)
+	logging.Info(fmt.Sprintf("Server listening on %s", port))
 	if err := server.Serve(listener); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

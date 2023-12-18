@@ -17,12 +17,12 @@ type Config struct {
 }
 
 func CreateNewConfig(env string) (*Config, error) {
-	healthCheck := true
+	outOfClusterKube := false
 	if env == "DEVELOPMENT" {
-		healthCheck = false
+		outOfClusterKube = true
 	}
 
-	kube, err := thales.CreateKubeClient(healthCheck)
+	kube, err := thales.CreateKubeClient(outOfClusterKube)
 	if err != nil {
 		return nil, err
 	}

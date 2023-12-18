@@ -1,0 +1,26 @@
+apiVersion: skaffold/v4beta8
+kind: Config
+metadata:
+  name: odysseia
+build:
+  tagPolicy:
+    sha256: { }
+  local:
+    push: false
+  artifacts:
+    - image: ghcr.io/odysseia-greek/peisistratos
+      context: peisistratos
+      docker:
+        target: debug
+      sync:
+        manual:
+          - src: '**/*.go'
+            dest: '/app'
+deploy:
+  kubeContext: k3d-odysseia
+  tolerateFailuresUntilDeadline: true
+manifests:
+  rawYaml:
+    - peisistratos/infra/manifest.yaml
+profiles:
+  - name: dev

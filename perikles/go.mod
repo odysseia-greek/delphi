@@ -1,11 +1,11 @@
 module github.com/odysseia-greek/delphi/perikles
 
-go 1.20
+go 1.21
 
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/odysseia-greek/agora/plato v0.1.1
-	github.com/odysseia-greek/agora/thales v0.1.5
+	github.com/odysseia-greek/agora/thales v0.1.7
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4

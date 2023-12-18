@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/models"
 	"log"
 	"strings"
@@ -37,11 +39,18 @@ func initCreation(tracing bool) models.SolonCreationRequest {
 	if secondaryAccess != "" {
 		envAccess = append(envAccess, secondaryAccess)
 	}
+
+	logging.Info(fmt.Sprintf("working on pod: %s", podName))
 	splitPodName := strings.Split(podName, "-")
 
 	var username string
 	if !tracing {
-		username = splitPodName[0] + splitPodName[2]
+		if len(splitPodName) > 1 {
+			username = splitPodName[0] + splitPodName[len(splitPodName)-1]
+		} else {
+			username = splitPodName[0]
+		}
+
 	} else {
 		username = config.DefaultTracingName
 	}

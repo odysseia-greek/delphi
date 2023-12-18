@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/drakon/app"
 	"github.com/odysseia-greek/delphi/drakon/config"
+	"github.com/odysseia-greek/delphi/drakon/legislator"
 	"log"
 	"os"
 	"strings"
@@ -36,7 +36,7 @@ func main() {
 		log.Fatal("death has found me")
 	}
 
-	handler := app.DrakonHandler{Config: drakonConfig}
+	handler := legislator.DrakonHandler{Config: drakonConfig}
 
 	created, err := handler.CreateRoles()
 	if err != nil {
