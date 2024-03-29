@@ -37,9 +37,6 @@ func main() {
 		log.Fatal("death has found me")
 	}
 
-	logging.System("creating tracing user at startup")
-	err = solonConfig.CreateTracingUser(true)
-
 	srv := lawgiver.InitRoutes(*solonConfig)
 	logging.System(fmt.Sprintf("%s : %v", "TLS enabled", solonConfig.TLSEnabled))
 	logging.System(fmt.Sprintf("%s : %s", "running on port", port))

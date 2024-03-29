@@ -11,6 +11,7 @@ import (
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/agora/plato/models"
+	pb "github.com/odysseia-greek/attike/aristophanes/proto"
 	"github.com/odysseia-greek/delphi/solon/config"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,6 +98,35 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	//    400: ValidationError
 	//	  405: MethodError
 	requestId := req.Header.Get(plato.HeaderKey)
+	splitID := strings.Split(requestId, "+")
+
+	traceCall := false
+	var traceID, spanID string
+
+	if len(splitID) >= 3 {
+		traceCall = splitID[2] == "1"
+	}
+
+	if len(splitID) >= 1 {
+		traceID = splitID[0]
+	}
+	if len(splitID) >= 2 {
+		spanID = splitID[1]
+	}
+
+	if traceCall {
+		traceReceived := &pb.TraceRequest{
+			TraceId:      traceID,
+			ParentSpanId: spanID,
+			Method:       req.Method,
+			Url:          req.URL.RequestURI(),
+			Host:         req.Host,
+		}
+
+		go s.Config.Tracer.Trace(context.Background(), traceReceived)
+		logging.Trace(fmt.Sprintf("found traceId: %s", traceID))
+	}
+
 	w.Header().Set(plato.HeaderKey, requestId)
 	//validate podname as registered?
 	policy := []string{"ptolemaios"}

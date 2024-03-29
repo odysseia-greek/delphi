@@ -1,0 +1,11 @@
+{
+    "target": "{{ get_env(name="TARGET", default="deploy/perikles") }}",
+    "feature": {
+        "network": {
+            "incoming": "mirror",
+            "outgoing": true
+        },
+        "fs": "read",
+        "env": true
+    }
+}

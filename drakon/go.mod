@@ -1,10 +1,10 @@
 module github.com/odysseia-greek/delphi/drakon
 
-go 1.20
+go 1.21.4
 
 require (
 	github.com/odysseia-greek/agora/aristoteles v0.1.1
-	github.com/odysseia-greek/agora/plato v0.1.1
+	github.com/odysseia-greek/agora/plato v0.1.4
 	github.com/stretchr/testify v1.8.4
 )
 

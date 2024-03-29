@@ -16,6 +16,8 @@ github.com/odysseia-greek/agora/aristoteles v0.1.1 h1:TimRzxpXr+YnB4kvrPj6StC4za
 github.com/odysseia-greek/agora/aristoteles v0.1.1/go.mod h1:yL2OMgCm43NclMcKt6vKkfjazToOM9YcxVPOCwikV/c=
 github.com/odysseia-greek/agora/plato v0.1.1 h1:0XAmBTwhZq+e/D+hT6W4a1ouWUOHN4uM4W6ceGTkbc4=
 github.com/odysseia-greek/agora/plato v0.1.1/go.mod h1:3PsoK9qGVARvhz7Xao1LtI8GK0/rOG0eMEeDfSJLNjQ=
+github.com/odysseia-greek/agora/plato v0.1.4 h1:TUkckJ83URgUV4uXg1WcpiW658WU1xEV6b5goTG0AC0=
+github.com/odysseia-greek/agora/plato v0.1.4/go.mod h1:8HAbEc1qo3ixs4KlbwRmgzsXyPbkX7RAwTxdUFZpiCU=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

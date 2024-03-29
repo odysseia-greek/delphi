@@ -78,25 +78,3 @@ func (k *KleisthenesHandler) updateWebhookCA(webhookName string, caBundle []byte
 	logging.Debug(fmt.Sprintf("updated webhook: %s", webhookName))
 	return err
 }
-
-func (k *KleisthenesHandler) updatePeriklesAfterWebhook(deploymentName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
-	deployment, err := k.Kube.AppsV1().Deployments(k.namespace).Get(ctx, deploymentName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	deployment.Spec.Template.Spec.Containers[0].Env = append(
-		deployment.Spec.Template.Spec.Containers[0].Env,
-		corev1.EnvVar{
-			Name:  "trigger",
-			Value: time.Now().Format(time.RFC3339Nano), // We just need a change to the spec to trigger a rolling update
-		})
-
-	updated, err := k.Kube.AppsV1().Deployments(k.namespace).Update(ctx, deployment, metav1.UpdateOptions{})
-
-	logging.Debug(fmt.Sprintf("updated deployment after webhook: %s", updated.Name))
-	return err
-}

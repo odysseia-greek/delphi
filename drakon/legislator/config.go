@@ -1,4 +1,4 @@
-package config
+package legislator
 
 import (
 	"github.com/odysseia-greek/agora/aristoteles"
@@ -6,18 +6,17 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 )
 
-func CreateNewConfig(env string) (*Config, error) {
+func CreateNewConfig(env string) (*DrakonHandler, error) {
 	healthCheck := true
-	if env == "LOCAL" || env == "TEST" {
+	if env == "DEVELOPMENT" {
 		healthCheck = false
 	}
 
-	testOverWrite := config.BoolFromEnv(config.EnvTestOverWrite)
 	tls := config.BoolFromEnv(config.EnvTlSKey)
 
 	var cfg models.Config
 
-	cfg = aristoteles.ElasticConfig(env, testOverWrite, tls)
+	cfg = aristoteles.ElasticConfig(env, false, tls)
 
 	elastic, err := aristoteles.NewClient(cfg)
 	if err != nil {
@@ -36,7 +35,7 @@ func CreateNewConfig(env string) (*Config, error) {
 	roles := config.SliceFromEnv(config.EnvRoles)
 	indexes := config.SliceFromEnv(config.EnvIndexes)
 
-	return &Config{
+	return &DrakonHandler{
 		Namespace: ns,
 		PodName:   podName,
 		Elastic:   elastic,

@@ -2,24 +2,36 @@ package legislator
 
 import (
 	"fmt"
+	"github.com/odysseia-greek/agora/aristoteles"
 	"github.com/odysseia-greek/agora/aristoteles/models"
-	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
-	configs "github.com/odysseia-greek/delphi/drakon/config"
 )
 
 type DrakonHandler struct {
-	Config *configs.Config
+	Namespace string
+	PodName   string
+	Elastic   aristoteles.Client
+	Roles     []string
+	Indexes   []string
 }
+
+const (
+	CreatorElasticRole  = "creator"
+	SeederElasticRole   = "seeder"
+	HybridElasticRole   = "hybrid"
+	ApiElasticRole      = "api"
+	AliasElasticRole    = "alias"
+	TracingElasticIndex = "tracing"
+)
 
 func (d *DrakonHandler) CreateRoles() (bool, error) {
 	logging.Debug("creating elastic roles based on labels")
 
 	var created bool
-	for _, index := range d.Config.Indexes {
-		if index == config.TracingElasticIndex {
-			for _, role := range d.Config.Roles {
-				if role == config.CreatorElasticRole {
+	for _, index := range d.Indexes {
+		if index == TracingElasticIndex {
+			for _, role := range d.Roles {
+				if role == CreatorElasticRole {
 					logging.Debug(fmt.Sprintf("creating a role for index %s with role %s", index, role))
 					var privileges []string
 
@@ -44,7 +56,7 @@ func (d *DrakonHandler) CreateRoles() (bool, error) {
 						Metadata:     models.Metadata{Version: 1},
 					}
 
-					roleCreated, err := d.Config.Elastic.Access().CreateRole(role, putRole)
+					roleCreated, err := d.Elastic.Access().CreateRole(role, putRole)
 					if err != nil {
 						return false, err
 					}
@@ -57,8 +69,8 @@ func (d *DrakonHandler) CreateRoles() (bool, error) {
 			}
 		}
 
-		for _, role := range d.Config.Roles {
-			if role == config.CreatorElasticRole {
+		for _, role := range d.Roles {
+			if role == CreatorElasticRole {
 				continue
 			}
 
@@ -67,17 +79,18 @@ func (d *DrakonHandler) CreateRoles() (bool, error) {
 			names := []string{index}
 
 			switch role {
-			case config.SeederElasticRole:
+			case SeederElasticRole:
 				privileges = append(privileges, "delete_index")
 				privileges = append(privileges, "create_index")
 				privileges = append(privileges, "create")
-			case config.HybridElasticRole:
+			case HybridElasticRole:
 				privileges = append(privileges, "create")
 				privileges = append(privileges, "read")
 				privileges = append(privileges, "index")
-			case config.ApiElasticRole:
+				privileges = append(privileges, "create_index")
+			case ApiElasticRole:
 				privileges = append(privileges, "read")
-			case config.AliasElasticRole:
+			case AliasElasticRole:
 				privileges = append(privileges, "delete_index")
 				privileges = append(privileges, "create_index")
 				privileges = append(privileges, "manage")
@@ -102,7 +115,7 @@ func (d *DrakonHandler) CreateRoles() (bool, error) {
 			}
 
 			roleName := fmt.Sprintf("%s_%s", index, role)
-			roleCreated, err := d.Config.Elastic.Access().CreateRole(roleName, putRole)
+			roleCreated, err := d.Elastic.Access().CreateRole(roleName, putRole)
 			if err != nil {
 				return false, err
 			}
