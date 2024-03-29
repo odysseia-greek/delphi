@@ -3,7 +3,6 @@ package legislator
 import (
 	"github.com/odysseia-greek/agora/aristoteles"
 	"github.com/odysseia-greek/agora/plato/config"
-	configs "github.com/odysseia-greek/delphi/drakon/config"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -18,13 +17,12 @@ func TestHandlerCreateDocuments(t *testing.T) {
 		roles := []string{config.SeederElasticRole, config.HybridElasticRole, config.ApiElasticRole}
 
 		for _, role := range roles {
-			testConfig := configs.Config{
+			testHandler := DrakonHandler{
 				Elastic: mockElasticClient,
 				Indexes: []string{"test"},
 				Roles:   []string{role},
 			}
 
-			testHandler := DrakonHandler{Config: &testConfig}
 			created, err := testHandler.CreateRoles()
 			assert.Nil(t, err)
 			assert.True(t, created)
@@ -37,13 +35,12 @@ func TestHandlerCreateDocuments(t *testing.T) {
 		mockElasticClient, err := aristoteles.NewMockClient(file, status)
 		assert.Nil(t, err)
 
-		testConfig := configs.Config{
+		testHandler := DrakonHandler{
 			Elastic: mockElasticClient,
 			Indexes: []string{"test"},
 			Roles:   []string{"rike"},
 		}
 
-		testHandler := DrakonHandler{Config: &testConfig}
 		created, err := testHandler.CreateRoles()
 		assert.NotNil(t, err)
 		assert.False(t, created)

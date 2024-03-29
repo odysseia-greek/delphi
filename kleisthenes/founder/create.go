@@ -11,6 +11,7 @@ type KleisthenesHandler struct {
 }
 
 func (k *KleisthenesHandler) Create() error {
+	// if the services are already running no need to create any of these
 	if err := k.perikles(); err != nil {
 		return err
 	}

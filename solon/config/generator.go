@@ -10,8 +10,10 @@ import (
 	"github.com/odysseia-greek/agora/plato/generator"
 	"github.com/odysseia-greek/agora/plato/logging"
 	kubernetes "github.com/odysseia-greek/agora/thales"
+	aristophanes "github.com/odysseia-greek/attike/aristophanes/comedy"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
 	"strings"
 	"time"
 )
@@ -27,6 +29,7 @@ type Config struct {
 	AccessAnnotation string
 	RoleAnnotation   string
 	TLSEnabled       bool
+	Tracer           *aristophanes.ClientTracer
 }
 
 func CreateNewConfig(env string) (*Config, error) {
@@ -72,6 +75,18 @@ func CreateNewConfig(env string) (*Config, error) {
 
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
 
+	logging.System("creating tracing user at startup")
+	err = createTracingUser(false, kube, elastic, ns)
+
+	tracer := aristophanes.NewClientTracer()
+	if healthCheck {
+		healthy := tracer.WaitForHealthyState()
+		if !healthy {
+			logging.Debug("tracing service not ready - restarting seems the only option")
+			os.Exit(1)
+		}
+	}
+
 	return &Config{
 		Vault:            vault,
 		Elastic:          elastic,
@@ -81,10 +96,11 @@ func CreateNewConfig(env string) (*Config, error) {
 		AccessAnnotation: config.DefaultAccessAnnotation,
 		RoleAnnotation:   config.DefaultRoleAnnotation,
 		TLSEnabled:       tls,
+		Tracer:           tracer,
 	}, nil
 }
 
-func (s *Config) CreateTracingUser(update bool) error {
+func createTracingUser(update bool, kube *kubernetes.KubeClient, elastic aristoteles.Client, namespace string) error {
 	password, err := generator.RandomPassword(24)
 	if err != nil {
 		return err
@@ -100,7 +116,7 @@ func (s *Config) CreateTracingUser(update bool) error {
 	defer cancel()
 
 	secretExists := true
-	_, err = s.Kube.CoreV1().Secrets(s.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+	_, err = kube.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			secretExists = false
@@ -124,7 +140,7 @@ func (s *Config) CreateTracingUser(update bool) error {
 				StringData: nil,
 				Type:       corev1.SecretTypeOpaque,
 			}
-			_, err = s.Kube.CoreV1().Secrets(s.Namespace).Update(ctx, updatedSecret, metav1.UpdateOptions{})
+			_, err = kube.CoreV1().Secrets(namespace).Update(ctx, updatedSecret, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -151,7 +167,7 @@ func (s *Config) CreateTracingUser(update bool) error {
 			StringData: nil,
 			Type:       corev1.SecretTypeOpaque,
 		}
-		_, err = s.Kube.CoreV1().Secrets(s.Namespace).Create(ctx, scr, metav1.CreateOptions{})
+		_, err = kube.CoreV1().Secrets(namespace).Create(ctx, scr, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -165,7 +181,7 @@ func (s *Config) CreateTracingUser(update bool) error {
 		Metadata: &elasticmodels.Metadata{Version: 1},
 	}
 
-	userCreated, err := s.Elastic.Access().CreateUser(config.DefaultTracingName, putUser)
+	userCreated, err := elastic.Access().CreateUser(config.DefaultTracingName, putUser)
 	if err != nil {
 		return err
 	}
