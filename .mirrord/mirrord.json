@@ -1,4 +1,5 @@
 {
+    "kube_context": "k3d-odysseia",
     "target": "{{ get_env(name="TARGET", default="deploy/perikles") }}",
     "feature": {
         "network": {

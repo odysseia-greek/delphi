@@ -22,6 +22,7 @@ const (
 	ApiElasticRole      = "api"
 	AliasElasticRole    = "alias"
 	TracingElasticIndex = "tracing"
+	MetricElasticIndex  = "metrics"
 )
 
 func (d *DrakonHandler) CreateRoles() (bool, error) {
@@ -29,7 +30,7 @@ func (d *DrakonHandler) CreateRoles() (bool, error) {
 
 	var created bool
 	for _, index := range d.Indexes {
-		if index == TracingElasticIndex {
+		if index == TracingElasticIndex || index == MetricElasticIndex {
 			for _, role := range d.Roles {
 				if role == CreatorElasticRole {
 					logging.Debug(fmt.Sprintf("creating a role for index %s with role %s", index, role))
@@ -56,12 +57,13 @@ func (d *DrakonHandler) CreateRoles() (bool, error) {
 						Metadata:     models.Metadata{Version: 1},
 					}
 
-					roleCreated, err := d.Elastic.Access().CreateRole(role, putRole)
+					roleName := fmt.Sprintf("%s_%s", index, role)
+					roleCreated, err := d.Elastic.Access().CreateRole(roleName, putRole)
 					if err != nil {
 						return false, err
 					}
 
-					logging.Info(fmt.Sprintf("role: %s - created: %v", role, roleCreated))
+					logging.Info(fmt.Sprintf("role: %s - created: %v", roleName, roleCreated))
 					created = roleCreated
 				} else {
 					continue

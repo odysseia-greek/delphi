@@ -10,7 +10,6 @@ import (
 	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/agora/plato/service"
 	kubernetes "github.com/odysseia-greek/agora/thales"
-	configs "github.com/odysseia-greek/delphi/solon/config"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -22,7 +21,7 @@ import (
 )
 
 func TestPingPongRoute(t *testing.T) {
-	testConfig := configs.Config{}
+	testConfig := &SolonHandler{}
 	router := InitRoutes(testConfig)
 	expected := "{\"result\":\"pong\"}"
 
@@ -41,7 +40,7 @@ func TestHealth(t *testing.T) {
 		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
 		assert.Nil(t, err)
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Elastic: mockElasticClient,
 			Vault:   mockVaultClient,
 		}
@@ -64,7 +63,7 @@ func TestCreateToken(t *testing.T) {
 		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
 		assert.Nil(t, err)
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Vault: mockVaultClient,
 		}
 
@@ -83,7 +82,7 @@ func TestCreateToken(t *testing.T) {
 		vaultClient, err := vault.NewVaultClient(badAddress, "token", nil)
 		assert.Nil(t, err)
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Vault: vaultClient,
 		}
 
@@ -120,7 +119,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		mockKube := kubernetes.NewFakeKubeClient()
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Elastic:          mockElasticClient,
 			Vault:            mockVaultClient,
 			Kube:             mockKube,
@@ -154,7 +153,7 @@ func TestRegister(t *testing.T) {
 		mockKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Elastic:          mockElasticClient,
 			Vault:            nil,
 			Kube:             mockKube,
@@ -190,7 +189,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		mockKube := kubernetes.NewFakeKubeClient()
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Elastic:          mockElasticClient,
 			Vault:            nil,
 			Kube:             mockKube,
@@ -226,7 +225,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		mockKube := kubernetes.NewFakeKubeClient()
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Elastic:          mockElasticClient,
 			Vault:            nil,
 			Kube:             mockKube,
@@ -263,7 +262,7 @@ func TestRegister(t *testing.T) {
 		vaultClient, err := vault.NewVaultClient("localhost:239riwefj", "token", nil)
 		assert.Nil(t, err)
 
-		testConfig := configs.Config{
+		testConfig := &SolonHandler{
 			Elastic:          mockElasticClient,
 			Kube:             mockKube,
 			Vault:            vaultClient,
