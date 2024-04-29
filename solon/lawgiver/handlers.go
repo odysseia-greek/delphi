@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/odysseia-greek/agora/aristoteles"
 	elasticmodels "github.com/odysseia-greek/agora/aristoteles/models"
 	"github.com/odysseia-greek/agora/diogenes"
 	plato "github.com/odysseia-greek/agora/plato/config"
@@ -11,8 +12,9 @@ import (
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/agora/plato/models"
+	kubernetes "github.com/odysseia-greek/agora/thales"
+	aristophanes "github.com/odysseia-greek/attike/aristophanes/comedy"
 	pb "github.com/odysseia-greek/attike/aristophanes/proto"
-	"github.com/odysseia-greek/delphi/solon/config"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -21,7 +23,15 @@ import (
 )
 
 type SolonHandler struct {
-	Config *config.Config
+	Vault            diogenes.Client
+	Elastic          aristoteles.Client
+	ElasticCert      []byte
+	Kube             *kubernetes.KubeClient
+	Namespace        string
+	AccessAnnotation string
+	RoleAnnotation   string
+	TLSEnabled       bool
+	Tracer           *aristophanes.ClientTracer
 }
 
 // PingPong pongs the ping
@@ -63,9 +73,9 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 	requestId := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestId)
 
-	vaultHealth, _ := s.Config.Vault.Health()
+	vaultHealth, _ := s.Vault.Health()
 
-	elasticHealth := s.Config.Elastic.Health().Info()
+	elasticHealth := s.Elastic.Health().Info()
 	dbHealth := models.DatabaseHealth{
 		Healthy:       elasticHealth.Healthy,
 		ClusterName:   elasticHealth.ClusterName,
@@ -123,14 +133,14 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 			Host:         req.Host,
 		}
 
-		go s.Config.Tracer.Trace(context.Background(), traceReceived)
+		go s.Tracer.Trace(context.Background(), traceReceived)
 		logging.Trace(fmt.Sprintf("found traceId: %s", traceID))
 	}
 
 	w.Header().Set(plato.HeaderKey, requestId)
 	//validate podname as registered?
 	policy := []string{"ptolemaios"}
-	token, err := s.Config.Vault.CreateOneTimeToken(policy)
+	token, err := s.Vault.CreateOneTimeToken(policy)
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
@@ -196,7 +206,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	pod, err := s.Config.Kube.CoreV1().Pods(s.Config.Namespace).Get(ctx, creationRequest.PodName, metav1.GetOptions{})
+	pod, err := s.Kube.CoreV1().Pods(s.Namespace).Get(ctx, creationRequest.PodName, metav1.GetOptions{})
 	if err != nil || !s.isValidAnnotations(pod.Annotations, &creationRequest) {
 		s.handleValidationError(w, "annotations", requestId, fmt.Errorf("annotations requested and found on pod %s did not match", creationRequest.PodName))
 		return
@@ -212,7 +222,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		Metadata: &elasticmodels.Metadata{Version: 1},
 	}
 
-	userCreated, err := s.Config.Elastic.Access().CreateUser(creationRequest.Username, putUser)
+	userCreated, err := s.Elastic.Access().CreateUser(creationRequest.Username, putUser)
 	if err != nil {
 		s.handleValidationError(w, "createUser", requestId, err)
 		return
@@ -223,14 +233,14 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		Data: diogenes.ElasticConfigVault{
 			Username:    creationRequest.Username,
 			Password:    password,
-			ElasticCERT: string(s.Config.ElasticCert),
+			ElasticCERT: string(s.ElasticCert),
 		},
 	}
 
 	payload, _ := createRequest.Marshal()
 
 	logging.Debug(fmt.Sprintf("created secret: %s", creationRequest.PodName))
-	secretCreated, err := s.Config.Vault.CreateNewSecret(creationRequest.PodName, payload)
+	secretCreated, err := s.Vault.CreateNewSecret(creationRequest.PodName, payload)
 	if err != nil {
 		s.handleValidationError(w, "createSecret", requestId, err)
 		return
@@ -258,7 +268,7 @@ func (s *SolonHandler) isValidAnnotations(annotations map[string]string, req *de
 	var validRole bool
 
 	for key, value := range annotations {
-		if key == s.Config.AccessAnnotation {
+		if key == s.AccessAnnotation {
 			splittedValues := strings.Split(value, ";")
 			for _, a := range req.Access {
 				if sliceContains(splittedValues, a) {
@@ -266,7 +276,7 @@ func (s *SolonHandler) isValidAnnotations(annotations map[string]string, req *de
 					break
 				}
 			}
-		} else if key == s.Config.RoleAnnotation && value == req.Role {
+		} else if key == s.RoleAnnotation && value == req.Role {
 			validRole = true
 		}
 	}

@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/mux"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/solon/config"
 	"github.com/odysseia-greek/delphi/solon/lawgiver"
 	"log"
 	"net/http"
@@ -23,7 +22,15 @@ func main() {
 		port = standardPort
 	}
 	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=SOLON
-	logging.System("\n  _____  ___   _       ___   ____  \n / ___/ /   \\ | |     /   \\ |    \\ \n(   \\_ |     || |    |     ||  _  |\n \\__  ||  O  || |___ |  O  ||  |  |\n /  \\ ||     ||     ||     ||  |  |\n \\    ||     ||     ||     ||  |  |\n  \\___| \\___/ |_____| \\___/ |__|__|\n                                   \n")
+	logging.System(`
+  _____  ___   _       ___   ____  
+ / ___/ /   \ | |     /   \ |    \ 
+(   \_ |     || |    |     ||  _  |
+ \__  ||  O  || |___ |  O  ||  |  |
+ /  \ ||     ||     ||     ||  |  |
+ \    ||     ||     ||     ||  |  |
+  \___| \___/ |_____| \___/ |__|__|
+`)
 	logging.System("\"αὐτοὶ γὰρ οὐκ οἷοί τε ἦσαν αὐτὸ ποιῆσαι Ἀθηναῖοι: ὁρκίοισι γὰρ μεγάλοισι κατείχοντο δέκα ἔτεα χρήσεσθαι νόμοισι τοὺς ἄν σφι Σόλων θῆται.\"")
 	logging.System("\"since the Athenians themselves could not do that, for they were bound by solemn oaths to abide for ten years by whatever laws Solon should make.\"")
 	logging.System("starting up.....")
@@ -31,17 +38,17 @@ func main() {
 
 	env := os.Getenv("ENV")
 
-	solonConfig, err := config.CreateNewConfig(env)
+	solonHandler, err := lawgiver.CreateNewConfig(env)
 	if err != nil {
 		logging.Error(err.Error())
 		log.Fatal("death has found me")
 	}
 
-	srv := lawgiver.InitRoutes(*solonConfig)
-	logging.System(fmt.Sprintf("%s : %v", "TLS enabled", solonConfig.TLSEnabled))
+	srv := lawgiver.InitRoutes(solonHandler)
+	logging.System(fmt.Sprintf("%s : %v", "TLS enabled", solonHandler.TLSEnabled))
 	logging.System(fmt.Sprintf("%s : %s", "running on port", port))
 
-	if solonConfig.TLSEnabled {
+	if solonHandler.TLSEnabled {
 		rootPath := os.Getenv("CERT_ROOT")
 		if rootPath == "" {
 			logging.Error("rootpath is empty no certs can be loaded")
