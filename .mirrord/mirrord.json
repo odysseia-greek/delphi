@@ -4,7 +4,11 @@
     "feature": {
         "network": {
             "incoming": "mirror",
-            "outgoing": true
+            "outgoing": {
+                "tcp": true,
+                "udp": true,
+                "ignore_localhost": true
+            }
         },
         "fs": "read",
         "env": true

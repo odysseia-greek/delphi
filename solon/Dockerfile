@@ -33,7 +33,7 @@ ENV project_name=${project_name}
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /app/${project_name}
 
 # Production build
-FROM alpine:3.18.4 as prod
+FROM alpine:3.19.1 as prod
 WORKDIR /app
 
 ARG project_name

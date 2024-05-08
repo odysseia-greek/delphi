@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -37,8 +38,9 @@ func main() {
 	logging.Debug("starting up and getting env variables")
 
 	env := os.Getenv("ENV")
+	ctx := context.Background()
 
-	solonHandler, err := lawgiver.CreateNewConfig(env)
+	solonHandler, err := lawgiver.CreateNewConfig(env, ctx)
 	if err != nil {
 		logging.Error(err.Error())
 		log.Fatal("death has found me")
@@ -58,14 +60,9 @@ func main() {
 		ca := x509.NewCertPool()
 		ca.AppendCertsFromPEM(caFromFile)
 		httpsServer := createTlSConfig(port, ca, srv)
-		overwrite := os.Getenv("TESTOVERWRITE")
-		var testOverwrite bool
-		if overwrite != "" {
-			testOverwrite = true
-		}
 
 		logging.Debug("loading cert files from mount")
-		certPath, keyPath := plato.RetrieveCertPathLocally(testOverwrite, "solon")
+		certPath, keyPath := plato.RetrieveCertPathLocally(false, "solon")
 		err = httpsServer.ListenAndServeTLS(certPath, keyPath)
 		if err != nil {
 			log.Fatal("death has found me")
@@ -80,9 +77,8 @@ func main() {
 
 func createTlSConfig(port string, ca *x509.CertPool, server *mux.Router) *http.Server {
 	cfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
+		MinVersion:       tls.VersionTLS12,
+		CurvePreferences: []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
