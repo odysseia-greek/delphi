@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/odysseia-greek/agora/aristoteles v0.1.6
-	github.com/odysseia-greek/agora/plato v0.1.15
+	github.com/odysseia-greek/agora/plato v0.1.17
 	github.com/stretchr/testify v1.9.0
 )
 

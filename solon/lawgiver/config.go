@@ -20,15 +20,10 @@ import (
 
 const testOverWrite string = "TEST_OVERWRITE"
 
-func CreateNewConfig(env string) (*SolonHandler, error) {
+func CreateNewConfig(env string, ctx context.Context) (*SolonHandler, error) {
 	healthCheck := true
 	outOfClusterKube := false
 	debugMode := false
-	if env == "DEVELOPMENT" {
-		healthCheck = false
-		outOfClusterKube = true
-		debugMode = true
-	}
 
 	vault, err := diogenes.CreateVaultClient(env, healthCheck, debugMode)
 	if err != nil {
@@ -66,14 +61,23 @@ func CreateNewConfig(env string) (*SolonHandler, error) {
 	logging.System("creating attike users at startup")
 	err = createAttikeUsers(false, kube, elastic, ns)
 
-	tracer := aristophanes.NewClientTracer()
-	if healthCheck {
-		healthy := tracer.WaitForHealthyState()
-		if !healthy {
-			logging.Debug("tracing service not ready - restarting seems the only option")
-			os.Exit(1)
-		}
+	tracer, err := aristophanes.NewClientTracer()
+	if err != nil {
+		logging.Error(err.Error())
 	}
+
+	healthy := tracer.WaitForHealthyState()
+	if !healthy {
+		logging.Debug("tracing service not ready - restarting seems the only option")
+		os.Exit(1)
+	}
+
+	streamer, err := tracer.Chorus(ctx)
+	if err != nil {
+		logging.Error(err.Error())
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
 
 	return &SolonHandler{
 		Vault:            vault,
@@ -84,7 +88,8 @@ func CreateNewConfig(env string) (*SolonHandler, error) {
 		AccessAnnotation: config.DefaultAccessAnnotation,
 		RoleAnnotation:   config.DefaultRoleAnnotation,
 		TLSEnabled:       tls,
-		Tracer:           tracer,
+		Streamer:         streamer,
+		Cancel:           cancel,
 	}, nil
 }
 

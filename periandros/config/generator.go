@@ -5,7 +5,6 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/models"
-	"log"
 	"strings"
 )
 
@@ -55,7 +54,7 @@ func initCreation(tracing bool) models.SolonCreationRequest {
 		username = config.DefaultTracingName
 	}
 
-	log.Printf("username from pod is: %s", username)
+	logging.Info(fmt.Sprintf("username from pod is: %s", username))
 
 	creationRequest := models.SolonCreationRequest{
 		Role:     role,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/odysseia-greek/agora/aristoteles"
 	elasticmodels "github.com/odysseia-greek/agora/aristoteles/models"
 	"github.com/odysseia-greek/agora/diogenes"
@@ -13,7 +14,6 @@ import (
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/agora/plato/models"
 	kubernetes "github.com/odysseia-greek/agora/thales"
-	aristophanes "github.com/odysseia-greek/attike/aristophanes/comedy"
 	pb "github.com/odysseia-greek/attike/aristophanes/proto"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +31,8 @@ type SolonHandler struct {
 	AccessAnnotation string
 	RoleAnnotation   string
 	TLSEnabled       bool
-	Tracer           *aristophanes.ClientTracer
+	Streamer         pb.TraceService_ChorusClient
+	Cancel           context.CancelFunc
 }
 
 // PingPong pongs the ping
@@ -107,44 +108,14 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	//	  200: TokenResponse
 	//    400: ValidationError
 	//	  405: MethodError
-	requestId := req.Header.Get(plato.HeaderKey)
-	splitID := strings.Split(requestId, "+")
 
-	traceCall := false
-	var traceID, spanID string
-
-	if len(splitID) >= 3 {
-		traceCall = splitID[2] == "1"
-	}
-
-	if len(splitID) >= 1 {
-		traceID = splitID[0]
-	}
-	if len(splitID) >= 2 {
-		spanID = splitID[1]
-	}
-
-	if traceCall {
-		traceReceived := &pb.TraceRequest{
-			TraceId:      traceID,
-			ParentSpanId: spanID,
-			Method:       req.Method,
-			Url:          req.URL.RequestURI(),
-			Host:         req.Host,
-		}
-
-		go s.Tracer.Trace(context.Background(), traceReceived)
-		logging.Trace(fmt.Sprintf("found traceId: %s", traceID))
-	}
-
-	w.Header().Set(plato.HeaderKey, requestId)
 	//validate podname as registered?
 	policy := []string{"ptolemaios"}
 	token, err := s.Vault.CreateOneTimeToken(policy)
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: requestId},
+			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "getting token",
