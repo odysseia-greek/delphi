@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/gorilla/mux"
-	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/solon/lawgiver"
 	"log"
@@ -62,7 +61,7 @@ func main() {
 		httpsServer := createTlSConfig(port, ca, srv)
 
 		logging.Debug("loading cert files from mount")
-		certPath, keyPath := plato.RetrieveCertPathLocally(false, "solon")
+		certPath, keyPath := lawgiver.RetrieveCertPathLocally()
 		err = httpsServer.ListenAndServeTLS(certPath, keyPath)
 		if err != nil {
 			log.Fatal("death has found me")

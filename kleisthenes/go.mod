@@ -3,7 +3,7 @@ module github.com/odysseia-greek/delphi/kleisthenes
 go 1.22
 
 require (
-	github.com/odysseia-greek/agora/plato v0.1.17
+	github.com/odysseia-greek/agora/plato v0.1.41
 	github.com/odysseia-greek/agora/thales v0.1.9
 	github.com/pkg/errors v0.9.1
 	k8s.io/api v0.29.3

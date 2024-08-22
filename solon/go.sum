@@ -181,8 +181,8 @@ github.com/odysseia-greek/agora/aristoteles v0.1.6 h1:J3Og0pb7KeNRRJ1PMvZZuZMgvS
 github.com/odysseia-greek/agora/aristoteles v0.1.6/go.mod h1:vZaZDhBf6Y4vvAPlo1zAES0TGGqcYykC6AwABpgU3Zw=
 github.com/odysseia-greek/agora/diogenes v0.1.4 h1:zaii31bCdRSuraRJyi1bHOAkX64anMlPa9kJzpuItLE=
 github.com/odysseia-greek/agora/diogenes v0.1.4/go.mod h1:nd8HWflnhxPqX/nfxbP3oZUt9bZvcIp27m5w4+jO3Yw=
-github.com/odysseia-greek/agora/plato v0.1.17 h1:ZY+W5dNNx+5twI+EdoKXTsjsHf6sci5tc8Om3+5wNfs=
-github.com/odysseia-greek/agora/plato v0.1.17/go.mod h1:P+HXT0Jy1tggm/6SD2f58AEVT+lEvrpxlbKtqTZZrB8=
+github.com/odysseia-greek/agora/plato v0.1.41 h1:zxcYI20D9hiBlh1rkPnRWqQdZeH0rKJlD0ufA0+iOD8=
+github.com/odysseia-greek/agora/plato v0.1.41/go.mod h1:P+HXT0Jy1tggm/6SD2f58AEVT+lEvrpxlbKtqTZZrB8=
 github.com/odysseia-greek/agora/thales v0.1.9 h1:bDLNiqkMgcuUFUnfnC2yf5vXKurs/CxKBLllu65q2qQ=
 github.com/odysseia-greek/agora/thales v0.1.9/go.mod h1:/Pk3exLO78YdFvJ9XkbhOCfRZeWZTIbcxfOGSDzUwdM=
 github.com/odysseia-greek/attike/aristophanes v0.5.8 h1:vurUnBFXBtPdtcP2kCTqVRO+QFxZtdG8H83I/MbRZqY=
