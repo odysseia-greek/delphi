@@ -14,11 +14,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 const testOverWrite string = "TEST_OVERWRITE"
+const SolonService string = "solon"
 
 func CreateNewConfig(env string, ctx context.Context) (*SolonHandler, error) {
 	healthCheck := true
@@ -195,4 +197,16 @@ func createAttikeUsers(update bool, kube *kubernetes.KubeClient, elastic aristot
 	}
 
 	return nil
+}
+
+func RetrieveCertPathLocally() (cert string, key string) {
+	keyName := "tls.key"
+	certName := "tls.crt"
+	service := SolonService
+
+	rootPath := os.Getenv("CERT_ROOT")
+	cert = filepath.Join(rootPath, service, certName)
+	key = filepath.Join(rootPath, service, keyName)
+
+	return
 }

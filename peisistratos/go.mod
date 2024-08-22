@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/hashicorp/vault/api v1.13.0
 	github.com/odysseia-greek/agora/diogenes v0.1.4
-	github.com/odysseia-greek/agora/plato v0.1.17
+	github.com/odysseia-greek/agora/plato v0.1.41
 	github.com/odysseia-greek/agora/thales v0.1.9
 	github.com/stretchr/testify v1.9.0
 	k8s.io/apimachinery v0.29.3

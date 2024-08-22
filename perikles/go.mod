@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/odysseia-greek/agora/plato v0.1.17
+	github.com/odysseia-greek/agora/plato v0.1.41
 	github.com/odysseia-greek/agora/thales v0.1.9
 	github.com/stretchr/testify v1.9.0
 	k8s.io/api v0.29.3

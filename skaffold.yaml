@@ -5,22 +5,31 @@ metadata:
 deploy:
   kubeContext: k3d-odysseia
   tolerateFailuresUntilDeadline: true
+
 build:
   local:
     push: false
 
 profiles:
-  - name: ptolemaios
+  - name: alexandros
     build:
       artifacts:
-        - image: ghcr.io/odysseia-greek/ptolemaios
-          context: ptolemaios
+        - image: ghcr.io/odysseia-greek/solon
+          context: ./solon
           docker:
             target: debug
           sync:
             manual:
               - src: '**/*.go'
                 dest: '/app'
-    manifests:
-      rawYaml:
-        - ptolemaios/infra/manifest.yaml
+    deploy:
+      helm:
+        releases:
+          - name: solon
+            chartPath: ../../odysseia-greek/mykenai/themistokles/odysseia/charts/solon
+            valuesFiles:
+              - ../../odysseia-greek/mykenai/themistokles/odysseia/values/local.yaml
+              - ../../odysseia-greek/mykenai/themistokles/odysseia/values/skaffold-values.yaml
+            setValues:
+              image.odysseiaapi.repo: solon
+              image.odysseiaapi.tag: dev
