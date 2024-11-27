@@ -6,16 +6,16 @@ import (
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/agora/plato/models"
-	"github.com/odysseia-greek/delphi/perikles/config"
-	"io/ioutil"
+	"io"
 	"k8s.io/api/admission/v1beta1"
 	v1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 )
 
 type PeriklesHandler struct {
-	Config *config.Config
+	Config *Config
 }
 
 // pingPong pongs the ping
@@ -31,7 +31,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 
 	var body []byte
 	if req.Body != nil {
-		if data, err := ioutil.ReadAll(req.Body); err == nil {
+		if data, err := io.ReadAll(req.Body); err == nil {
 			body = data
 		}
 	}
@@ -101,7 +101,29 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 		}
 
 		go func() {
-			err := p.checkForAnnotations(deploy)
+			err := p.checkForAnnotations(&deploy, nil)
+			if err != nil {
+				logging.Error(err.Error())
+			}
+		}()
+	case "Job":
+		job := batchv1.Job{}
+		if err := json.Unmarshal(raw, &job); err != nil {
+			e := models.ValidationError{
+				ErrorModel: models.ErrorModel{UniqueCode: requestId},
+				Messages: []models.ValidationMessages{
+					{
+						Field:   "body",
+						Message: "incorrect body was send: cannot unmarshal request into Job",
+					},
+				},
+			}
+			middleware.ResponseWithJson(w, e)
+			return
+		}
+
+		go func() {
+			err := p.checkForAnnotations(nil, &job)
 			if err != nil {
 				logging.Error(err.Error())
 			}

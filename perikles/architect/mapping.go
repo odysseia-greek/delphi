@@ -109,6 +109,16 @@ func (p *PeriklesHandler) loopForMappingUpdates() {
 	}
 }
 
+func (p *PeriklesHandler) restartKubeResource(ns, name, kubeType string) error {
+	switch kubeType {
+	case "Deployment":
+		err := p.restartDeployment(ns, name)
+		return err
+	}
+
+	return nil
+}
+
 func (p *PeriklesHandler) checkMappingForUpdates() error {
 	mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 )
 
 const (
+	IgnoreInGitOps       = "gitops.ignore"
 	AnnotationUpdate     = "perikles/updated"
 	AnnotationValidity   = "perikles/validity"
 	AnnotationHost       = "perikles/hostname"
@@ -19,7 +21,18 @@ const (
 	AnnotationHostSecret = "perikles/hostsecret"
 )
 
-func (p *PeriklesHandler) checkForAnnotations(deployment v1.Deployment) error {
+func (p *PeriklesHandler) checkForAnnotations(deployment *v1.Deployment, job *batchv1.Job) error {
+	go func() {
+		err := p.checkForElasticAnnotations(deployment, job)
+		if err != nil {
+			logging.Error(fmt.Sprintf("failed to apply Cilium network policy for deployment %s: %s", deployment.Name, err.Error()))
+		}
+	}()
+
+	if job != nil {
+		return nil
+	}
+
 	for key, value := range deployment.Spec.Template.Annotations {
 		if key == AnnotationHost {
 			err := p.hostFlow(deployment)
@@ -39,7 +52,7 @@ func (p *PeriklesHandler) checkForAnnotations(deployment v1.Deployment) error {
 	return nil
 }
 
-func (p *PeriklesHandler) hostFlow(deployment v1.Deployment) error {
+func (p *PeriklesHandler) hostFlow(deployment *v1.Deployment) error {
 	var validity int
 	var hostName string
 	var secretName string
@@ -95,13 +108,6 @@ func (p *PeriklesHandler) hostFlow(deployment v1.Deployment) error {
 		return err
 	}
 
-	//TODO: fix the restart since its stuck in a loop
-	//glg.Debug("restarting deployment")
-	//err = p.restartKubeResource(deployment.Namespace, deployment.Name, deployment.Kind)
-	//if err != nil {
-	//	return err
-	//}
-
 	return nil
 }
 
@@ -133,17 +139,10 @@ func (p *PeriklesHandler) restartDeployment(ns, deploymentName string) error {
 		deployment.Spec.Template.Annotations[key] = value
 	}
 
-	_, err = p.Config.Kube.AppsV1().Deployments(p.Config.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
-
-	return err
-}
-
-func (p *PeriklesHandler) restartKubeResource(ns, name, kubeType string) error {
-	switch kubeType {
-	case "Deployment":
-		err := p.restartDeployment(ns, name)
-		return err
+	deploy, err := p.Config.Kube.AppsV1().Deployments(p.Config.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+	if deploy != nil {
+		logging.Info(fmt.Sprintf("restarting deployment %s in ns %s", deploy.Name, deploy.Namespace))
 	}
 
-	return nil
+	return err
 }

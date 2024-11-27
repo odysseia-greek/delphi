@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/odysseia-greek/agora/plato/certificates"
 	kubernetes "github.com/odysseia-greek/agora/thales"
-	"github.com/odysseia-greek/delphi/perikles/config"
+	"github.com/odysseia-greek/agora/thales/odysseia"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
@@ -46,12 +46,14 @@ func TestSettingOfMappings(t *testing.T) {
 	err = cert.InitCa()
 	assert.Nil(t, err)
 	fakeKube := kubernetes.NewFakeKubeClient()
+	mapping, err := odysseia.NewFakeServiceMappingImpl()
 	assert.Nil(t, err)
-	testConfig := config.Config{
+	testConfig := Config{
 		Kube:      fakeKube,
 		Cert:      cert,
 		Namespace: ns,
 		CrdName:   "test",
+		Mapping:   mapping,
 	}
 	handler := PeriklesHandler{Config: &testConfig}
 	serviceName := "test"
@@ -114,10 +116,13 @@ func TestCheckMappingForUpdates(t *testing.T) {
 	err = cert.InitCa()
 	assert.Nil(t, err)
 	fakeKube := kubernetes.NewFakeKubeClient()
-	testConfig := config.Config{
+	mapping, err := odysseia.NewFakeServiceMappingImpl()
+	assert.Nil(t, err)
+	testConfig := Config{
 		Kube:      fakeKube,
 		Cert:      cert,
 		Namespace: ns,
+		Mapping:   mapping,
 		CrdName:   "test",
 	}
 	handler := PeriklesHandler{Config: &testConfig}

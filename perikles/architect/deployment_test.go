@@ -4,7 +4,6 @@ import (
 	"github.com/odysseia-greek/agora/plato/certificates"
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/agora/thales/odysseia"
-	"github.com/odysseia-greek/delphi/perikles/config"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -23,7 +22,7 @@ func TestAnnotations(t *testing.T) {
 	fakeMapping, err := odysseia.NewFakeServiceMappingImpl()
 	assert.Nil(t, err)
 	crdName := "testCrd"
-	testConfig := config.Config{
+	testConfig := Config{
 		Kube:      fakeKube,
 		Mapping:   fakeMapping,
 		Cert:      cert,
@@ -43,7 +42,7 @@ func TestAnnotations(t *testing.T) {
 			AnnotationValidity: validity,
 		}
 		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
-		err := handler.checkForAnnotations(*deployment)
+		err := handler.checkForAnnotations(deployment, nil)
 		assert.Nil(t, err)
 		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
@@ -65,7 +64,7 @@ func TestAnnotations(t *testing.T) {
 		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
 		volume := kubernetes.TestPodSpecVolume(volumeName, secretName)
 		deployment.Spec.Template.Spec.Volumes = volume
-		err := handler.checkForAnnotations(*deployment)
+		err := handler.checkForAnnotations(deployment, nil)
 		assert.Nil(t, err)
 		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
@@ -87,7 +86,7 @@ func TestAnnotations(t *testing.T) {
 			AnnotationHostSecret: hostSecret,
 		}
 		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
-		err := handler.checkForAnnotations(*deployment)
+		err := handler.checkForAnnotations(deployment, nil)
 		assert.Nil(t, err)
 		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
@@ -109,7 +108,7 @@ func TestAnnotations(t *testing.T) {
 			AnnotationHostSecret: hostSecret,
 		}
 		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
-		err := handler.checkForAnnotations(*deployment)
+		err := handler.checkForAnnotations(deployment, nil)
 		assert.Nil(t, err)
 		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)
@@ -129,7 +128,7 @@ func TestAnnotations(t *testing.T) {
 			AnnotationAccesses: client,
 		}
 		deployment := kubernetes.TestAnnotatedDeploymentObject(deploymentName, ns, annotations)
-		err := handler.checkForAnnotations(*deployment)
+		err := handler.checkForAnnotations(deployment, nil)
 		assert.Nil(t, err)
 		sut, err := testConfig.Mapping.Get("asfasf")
 		assert.Nil(t, err)

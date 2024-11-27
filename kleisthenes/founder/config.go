@@ -6,12 +6,7 @@ import (
 )
 
 func CreateNewConfig(env string) (*KleisthenesHandler, error) {
-	outOfClusterKube := false
-	if env == "DEVELOPMENT" {
-		outOfClusterKube = true
-	}
-
-	kube, err := kubernetes.CreateKubeClient(outOfClusterKube)
+	kube, err := kubernetes.CreateKubeClient(false)
 	if err != nil {
 		return nil, err
 	}
