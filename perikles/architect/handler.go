@@ -12,6 +12,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
+	"strings"
 )
 
 type PeriklesHandler struct {
@@ -123,9 +124,11 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 		}
 
 		go func() {
-			err := p.checkForAnnotations(nil, &job)
-			if err != nil {
-				logging.Error(err.Error())
+			if !strings.Contains(job.Name, "mirrord") {
+				err := p.checkForAnnotations(nil, &job)
+				if err != nil {
+					logging.Error(err.Error())
+				}
 			}
 		}()
 	}

@@ -25,7 +25,14 @@ func (p *PeriklesHandler) checkForAnnotations(deployment *v1.Deployment, job *ba
 	go func() {
 		err := p.checkForElasticAnnotations(deployment, job)
 		if err != nil {
-			logging.Error(fmt.Sprintf("failed to apply Cilium network policy for deployment %s: %s", deployment.Name, err.Error()))
+			if deployment != nil {
+				logging.Error(fmt.Sprintf("failed to apply Cilium network policy for deployment %s", deployment.Name))
+			}
+
+			if job != nil {
+				logging.Error(fmt.Sprintf("failed to apply Cilium network policy for job %s", job.Name))
+			}
+
 		}
 	}()
 

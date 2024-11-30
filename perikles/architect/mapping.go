@@ -1,9 +1,12 @@
 package architect
 
 import (
+	"context"
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/thales/crd/v1alpha"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 )
 
@@ -66,26 +69,16 @@ func (p *PeriklesHandler) addClientToMapping(hostName, clientName, kubeType stri
 		KubeType:  kubeType,
 		Namespace: p.Config.Namespace,
 	}
-	found := false
+
 	for i, service := range mapping.Spec.Services {
 		if service.Name == hostName {
-			found = true
+			for _, existingClient := range service.Clients {
+				if existingClient.Name == clientName {
+					return mapping, nil
+				}
+			}
 			mapping.Spec.Services[i].Clients = append(mapping.Spec.Services[i].Clients, client)
 		}
-	}
-
-	if !found {
-		service := v1alpha.Service{
-			Name:       hostName,
-			Namespace:  p.Config.Namespace,
-			KubeType:   "",
-			SecretName: "",
-			Active:     false,
-			Validity:   0,
-			Created:    time.Now().UTC().Format(timeFormat),
-			Clients:    []v1alpha.Client{client},
-		}
-		mapping.Spec.Services = append(mapping.Spec.Services, service)
 	}
 
 	updatedMapping, err := p.Config.Mapping.Update(mapping)
@@ -97,11 +90,12 @@ func (p *PeriklesHandler) addClientToMapping(hostName, clientName, kubeType stri
 }
 
 func (p *PeriklesHandler) loopForMappingUpdates() {
-	ticker := time.NewTicker(6 * time.Hour)
+	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
 			err := p.checkMappingForUpdates()
+			ticker = time.NewTicker(1 * time.Hour)
 			if err != nil {
 				logging.Error(err.Error())
 			}
@@ -117,6 +111,62 @@ func (p *PeriklesHandler) restartKubeResource(ns, name, kubeType string) error {
 	}
 
 	return nil
+}
+
+func (p *PeriklesHandler) cleanUpMapping(serviceToRemove string) error {
+	mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
+	if err != nil {
+		return err
+	}
+
+	if len(mapping.Spec.Services) == 0 {
+		logging.Debug("service mapping empty no action required")
+		return nil
+	}
+
+	newMapping := v1alpha.Mapping{}
+
+	for _, service := range mapping.Spec.Services {
+		if service.Name == serviceToRemove {
+			continue
+		}
+
+		newService := v1alpha.Service{
+			Name:       service.Name,
+			KubeType:   service.KubeType,
+			SecretName: service.SecretName,
+			Namespace:  service.Namespace,
+			Active:     service.Active,
+			Created:    service.Created,
+			Validity:   service.Validity,
+			Clients:    []v1alpha.Client{},
+		}
+
+		for _, client := range service.Clients {
+			if client.Name == serviceToRemove {
+				continue
+			}
+
+			addClient := true
+			for _, newClient := range newService.Clients {
+				if newClient.Name == client.Name {
+					addClient = false
+					break
+				}
+			}
+
+			if addClient {
+				newService.Clients = append(newService.Clients, client)
+			}
+		}
+
+		newMapping.Spec.Services = append(newMapping.Spec.Services, newService)
+	}
+
+	mapping.Spec.Services = newMapping.Spec.Services
+	_, err = p.Config.Mapping.Update(mapping)
+	return err
+
 }
 
 func (p *PeriklesHandler) checkMappingForUpdates() error {
@@ -136,6 +186,45 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 			return err
 		}
 
+		if service.Name == "solon" {
+			redeploy = true
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		_, err = p.Config.Kube.AppsV1().Deployments(service.Namespace).Get(ctx, service.Name, metav1.GetOptions{})
+		if err != nil {
+			// If deployment doesn't exist, delete the associated secret
+			if errors.IsNotFound(err) {
+				err = p.Config.Kube.CoreV1().Secrets(service.Namespace).Delete(ctx, service.SecretName, metav1.DeleteOptions{})
+				if err != nil {
+					logging.Error(err.Error())
+				} else {
+					logging.Debug(fmt.Sprintf("deleted secret: %s for orphaned service: %s", service.SecretName, service.Name))
+					err = p.cleanUpMapping(service.Name)
+					if err != nil {
+						logging.Error(err.Error())
+					}
+					return nil
+				}
+			}
+		}
+
+		for _, client := range service.Clients {
+			ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_, err = p.Config.Kube.AppsV1().Deployments(client.Namespace).Get(ctx, client.Name, metav1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) {
+					err = p.cleanUpMapping(client.Name)
+					if err != nil {
+						logging.Error(err.Error())
+					}
+				}
+			}
+		}
+
 		if redeploy {
 			logging.Debug(fmt.Sprintf("redeploy needed for service: %s", service.Name))
 			logging.Debug("creating new certs after validity ran out")
@@ -151,15 +240,6 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 			err = p.createCert(hosts, service.Validity, service.SecretName)
 			if err != nil {
 				return err
-			}
-
-			err = p.restartKubeResource(service.Namespace, service.Name, service.KubeType)
-			if err != nil {
-				return err
-			}
-
-			for _, client := range service.Clients {
-				go p.restartKubeResource(client.Namespace, client.Name, client.KubeType)
 			}
 		}
 	}

@@ -3,14 +3,15 @@ module github.com/odysseia-greek/delphi/solon
 go 1.23.0
 
 require (
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/odysseia-greek/agora/aristoteles v0.1.8
-	github.com/odysseia-greek/agora/diogenes v0.1.5
+	github.com/odysseia-greek/agora/aristoteles v0.1.10
+	github.com/odysseia-greek/agora/diogenes v0.1.8
 	github.com/odysseia-greek/agora/plato v0.1.45
 	github.com/odysseia-greek/agora/thales v0.1.11
-	github.com/odysseia-greek/attike/aristophanes v0.6.1
-	github.com/stretchr/testify v1.9.0
+	github.com/odysseia-greek/attike/aristophanes v0.6.2
+	github.com/stretchr/testify v1.10.0
 	k8s.io/api v0.31.2
 	k8s.io/apimachinery v0.31.2
 )
@@ -80,17 +81,17 @@ require (
 	go.opentelemetry.io/otel/metric v1.28.0 // indirect
 	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	go.starlark.net v0.0.0-20240725214946-42030a7cedce // indirect
-	golang.org/x/crypto v0.24.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/crypto v0.27.0 // indirect
+	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/oauth2 v0.23.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/term v0.24.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
-	google.golang.org/grpc v1.65.0 // indirect
-	google.golang.org/protobuf v1.34.2 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	google.golang.org/grpc v1.68.0 // indirect
+	google.golang.org/protobuf v1.35.2 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

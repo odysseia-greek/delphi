@@ -19,31 +19,26 @@ import (
 	"time"
 )
 
-const testOverWrite string = "TEST_OVERWRITE"
-const SolonService string = "solon"
-
-func CreateNewConfig(env string, ctx context.Context) (*SolonHandler, error) {
-	healthCheck := true
-	outOfClusterKube := false
-	debugMode := false
-
-	vault, err := diogenes.CreateVaultClient(env, healthCheck, debugMode)
+func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
+	vault, err := diogenes.CreateVaultClient(true)
 	if err != nil {
 		return nil, err
 	}
 
-	testOverWrite := config.BoolFromEnv(testOverWrite)
 	tls := config.BoolFromEnv(config.EnvTlSKey)
 
-	kube, err := kubernetes.CreateKubeClient(outOfClusterKube)
+	kube, err := kubernetes.CreateKubeClient(false)
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg elasticmodels.Config
 	var cert string
 
-	cfg = aristoteles.ElasticConfig(env, testOverWrite, tls)
+	cfg, err := aristoteles.ElasticConfig(tls)
+	if err != nil {
+		logging.Error(fmt.Sprintf("failed to create Elastic client operations will be interupted, %s", err.Error()))
+	}
+
 	cert = cfg.ElasticCERT
 
 	elastic, err := aristoteles.NewClient(cfg)
@@ -51,11 +46,9 @@ func CreateNewConfig(env string, ctx context.Context) (*SolonHandler, error) {
 		return nil, err
 	}
 
-	if healthCheck {
-		err := aristoteles.HealthCheck(elastic)
-		if err != nil {
-			return nil, err
-		}
+	err = aristoteles.HealthCheck(elastic)
+	if err != nil {
+		return nil, err
 	}
 
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
@@ -63,7 +56,7 @@ func CreateNewConfig(env string, ctx context.Context) (*SolonHandler, error) {
 	logging.System("creating attike users at startup")
 	err = createAttikeUsers(false, kube, elastic, ns)
 
-	tracer, err := aristophanes.NewClientTracer()
+	tracer, err := aristophanes.NewClientTracer(aristophanes.DefaultAddress)
 	if err != nil {
 		logging.Error(err.Error())
 	}
@@ -199,10 +192,9 @@ func createAttikeUsers(update bool, kube *kubernetes.KubeClient, elastic aristot
 	return nil
 }
 
-func RetrieveCertPathLocally() (cert string, key string) {
+func RetrieveCertPathLocally(service string) (cert string, key string) {
 	keyName := "tls.key"
 	certName := "tls.crt"
-	service := SolonService
 
 	rootPath := os.Getenv("CERT_ROOT")
 	cert = filepath.Join(rootPath, service, certName)
