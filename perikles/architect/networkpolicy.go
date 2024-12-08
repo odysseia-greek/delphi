@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	ciliumv2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
-	slimmetav1 "github.com/cilium/cilium/pkg/k8s/slim/k8s/apis/meta/v1"
-	"github.com/cilium/cilium/pkg/policy/api"
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	v1 "k8s.io/api/apps/v1"
@@ -15,29 +13,31 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"strings"
-	"time"
-)
-
-const (
-	CreatorElasticRole = "creator"
-	SeederElasticRole  = "seeder"
-	HybridElasticRole  = "hybrid"
-	ApiElasticRole     = "api"
-	AliasElasticRole   = "alias"
 )
 
 func (p *PeriklesHandler) checkForElasticAnnotations(deployment *v1.Deployment, job *batchv1.Job) error {
 	var access, role string
 
 	annotations := map[string]string{}
+	var accessToServices string
+	var kubeObject string
+	var namespace string
+	var containers []v2.Container
+
 	if deployment != nil {
 		annotations = deployment.Spec.Template.Annotations
+		kubeObject = deployment.Name
+		namespace = deployment.Namespace
+		containers = deployment.Spec.Template.Spec.Containers
 	}
 
 	if job != nil {
 		annotations = job.Spec.Template.Annotations
+		kubeObject = job.Name
+		namespace = job.Namespace
+		containers = job.Spec.Template.Spec.Containers
 	}
+
 	for key, value := range annotations {
 		if key == config.DefaultAccessAnnotation {
 			access = value
@@ -46,107 +46,28 @@ func (p *PeriklesHandler) checkForElasticAnnotations(deployment *v1.Deployment, 
 		if key == config.DefaultRoleAnnotation {
 			role = value
 		}
+
+		if key == AnnotationAccesses {
+			accessToServices = value
+		}
+	}
+
+	if accessToServices != "" {
+		p.generateServiceToServiceNetworkPolicy(kubeObject, namespace, accessToServices, containers)
 	}
 
 	if access == "" || role == "" {
-		return fmt.Errorf("no role or access annotations found in deployment")
+		logging.Warn(fmt.Sprintf("No access annotations found in kube object %s/%s", namespace, kubeObject))
+		return nil
 	}
-	policy := p.generateCiliumNetworkPolicy(deployment, job, access, role)
+
+	policy := p.generateCiliumNetworkPolicyElastic(deployment, job, access, role)
 	err := p.applyNetworkPolicy(policy)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (p *PeriklesHandler) generateCiliumNetworkPolicy(deploy *v1.Deployment, job *batchv1.Job, elasticAccess, role string) *ciliumv2.CiliumNetworkPolicy {
-	// Define the annotations for tracking policy creation
-	newAnnotation := make(map[string]string)
-	newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)
-	newAnnotation[IgnoreInGitOps] = "true"
-
-	var name, namespace string
-	var initContainers, containers []v2.Container
-
-	if deploy == nil && job == nil {
-		return nil
-	}
-
-	if deploy != nil {
-		name = deploy.Name
-		namespace = deploy.Namespace
-		initContainers = deploy.Spec.Template.Spec.InitContainers
-		containers = deploy.Spec.Template.Spec.Containers
-	}
-
-	if job != nil {
-		name = job.Name
-		namespace = job.Namespace
-		initContainers = job.Spec.Template.Spec.InitContainers
-		containers = job.Spec.Template.Spec.Containers
-	}
-
-	// Define the CiliumNetworkPolicy
-	policy := ciliumv2.CiliumNetworkPolicy{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "CiliumNetworkPolicy",
-			APIVersion: "cilium.io/v2",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        fmt.Sprintf("restrict-elasticsearch-access-%s", name),
-			Namespace:   namespace,
-			Annotations: newAnnotation,
-		},
-		Spec: &api.Rule{
-			// EndpointSelector selects the pods in the deployment
-			EndpointSelector: api.EndpointSelector{
-				LabelSelector: &slimmetav1.LabelSelector{
-					MatchLabels: map[string]string{"elasticsearch.k8s.elastic.co/cluster-name": "aristoteles"},
-				},
-			},
-			// Define Ingress rules with IngressCommonRule
-			Ingress: []api.IngressRule{
-				{
-					IngressCommonRule: api.IngressCommonRule{
-						FromEndpoints: []api.EndpointSelector{
-							{
-								LabelSelector: &slimmetav1.LabelSelector{
-									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name},
-								},
-							},
-						},
-					},
-					ToPorts: []api.PortRule{
-						{
-							Ports: []api.PortProtocol{
-								{
-									Port:     "9200",
-									Protocol: api.ProtoTCP,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	if p.Config.L7Mode {
-		rules := p.getHTTPRulesForRoleWithRegex(role, elasticAccess)
-
-		additionalPolicies := p.determineSideCars(initContainers, containers)
-
-		for _, rule := range additionalPolicies {
-			rules = append(rules, rule)
-		}
-
-		policy.Spec.Ingress[0].ToPorts[0].Rules = &api.L7Rules{
-			HTTP: rules,
-		}
-	}
-
-	return &policy
 }
 
 // applyNetworkPolicy applies a CiliumNetworkPolicy using the dynamic Kubernetes client.
@@ -164,6 +85,25 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 		return fmt.Errorf("failed to convert CiliumNetworkPolicy to unstructured: %w", err)
 	}
 
+	// Get the network policy first and delete if it exists
+	_, err = p.Config.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Get(
+		context.Background(),
+		policy.Name,
+		metav1.GetOptions{},
+	)
+
+	if err == nil {
+		logging.Debug(fmt.Sprintf("CiliumNetworkPolicy %s found", policy.Name))
+
+		err = p.Config.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Delete(
+			context.Background(),
+			policy.Name,
+			metav1.DeleteOptions{},
+		)
+
+		logging.Debug(fmt.Sprintf("CiliumNetworkPolicy %s deleted", policy.Name))
+	}
+
 	// Correct the problematic fields in the unstructured object
 	if spec, found, _ := unstructured.NestedMap(unstructuredObj, "spec"); found {
 		// Fix `endpointSelector.matchLabels` (for elasticsearch key)
@@ -172,6 +112,15 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 				if value, ok := matchLabels["elasticsearch:k8s.elastic.co/cluster-name"]; ok {
 					matchLabels["elasticsearch.k8s.elastic.co/cluster-name"] = value
 					delete(matchLabels, "elasticsearch:k8s.elastic.co/cluster-name")
+				}
+				if value, ok := matchLabels["app:kubernetes.io/name"]; ok {
+					matchLabels["app.kubernetes.io/name"] = value
+					delete(matchLabels, "app:kubernetes.io/name")
+				}
+
+				if value, ok := matchLabels["any:app"]; ok {
+					matchLabels["app"] = value
+					delete(matchLabels, "any:app")
 				}
 				_ = unstructured.SetNestedMap(endpointSelector, matchLabels, "matchLabels")
 			}
@@ -222,53 +171,4 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 
 	logging.Debug(fmt.Sprintf("Successfully applied CiliumNetworkPolicy %s in namespace %s", policy.Name, policy.Namespace))
 	return nil
-}
-
-func (p *PeriklesHandler) getHTTPRulesForRoleWithRegex(role, index string) []api.PortRuleHTTP {
-	var rules []api.PortRuleHTTP
-
-	switch role {
-	case SeederElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s/.*$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_create$", index)})
-
-	case HybridElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/.*$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s/_create$", index)})
-
-	case ApiElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/.*$", index)})
-
-	case AliasElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^GET$", Path: fmt.Sprintf("^/%s/_search/??.*$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/.*$", index)})
-	}
-
-	healthEndpoint := api.PortRuleHTTP{Method: "^GET$", Path: "^/$"}
-	rules = append(rules, healthEndpoint)
-
-	return rules
-}
-
-func (p *PeriklesHandler) determineSideCars(containers []v2.Container, init []v2.Container) []api.PortRuleHTTP {
-	var rules []api.PortRuleHTTP
-
-	for _, initContainer := range init {
-		if strings.Contains(initContainer.Name, "pe") {
-
-		}
-	}
-
-	for _, container := range containers {
-		if strings.Contains(container.Name, "aristophanes") {
-			rules = append(rules, api.PortRuleHTTP{Method: "POST", Path: fmt.Sprintf("^/%s/*", config.TracingElasticIndex)})       // For indexing and creating
-			rules = append(rules, api.PortRuleHTTP{Method: "PUT", Path: fmt.Sprintf("^/%s/_create$", config.TracingElasticIndex)}) // For direct document creation
-		}
-
-		if strings.Contains(container.Name, "sophokles") {
-			rules = append(rules, api.PortRuleHTTP{Method: "POST", Path: fmt.Sprintf("^/%s/*", config.MetricsElasticIndex)})       // For indexing and creating
-			rules = append(rules, api.PortRuleHTTP{Method: "PUT", Path: fmt.Sprintf("^/%s/_create$", config.MetricsElasticIndex)}) // For direct document creation
-		}
-	}
-	return rules
 }

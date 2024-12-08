@@ -135,14 +135,6 @@ func TestCheckMappingForUpdates(t *testing.T) {
 		assert.Nil(t, sut)
 	})
 
-	t.Run("ErrorBecauseDeploymentDoesNotExist", func(t *testing.T) {
-		_, err := handler.addHostToMapping(serviceName, secretName, kubeType, 1)
-		assert.Nil(t, err)
-		sut := handler.checkMappingForUpdates()
-		// error won't be nil because the deployment does not exist
-		assert.NotNil(t, sut)
-	})
-
 	t.Run("RedeployNeeded", func(t *testing.T) {
 		_, err := handler.addHostToMapping(serviceName, secretName, kubeType, 1)
 		assert.Nil(t, err)

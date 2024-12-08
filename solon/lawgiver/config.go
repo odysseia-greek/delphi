@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -190,15 +189,4 @@ func createAttikeUsers(update bool, kube *kubernetes.KubeClient, elastic aristot
 	}
 
 	return nil
-}
-
-func RetrieveCertPathLocally(service string) (cert string, key string) {
-	keyName := "tls.key"
-	certName := "tls.crt"
-
-	rootPath := os.Getenv("CERT_ROOT")
-	cert = filepath.Join(rootPath, service, certName)
-	key = filepath.Join(rootPath, service, keyName)
-
-	return
 }

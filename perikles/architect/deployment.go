@@ -37,6 +37,7 @@ func (p *PeriklesHandler) checkForAnnotations(deployment *v1.Deployment, job *ba
 	}()
 
 	if job != nil {
+		// jobs do not need to be registered as clients as they startup with the new secret after am update
 		return nil
 	}
 
@@ -65,8 +66,6 @@ func (p *PeriklesHandler) hostFlow(deployment *v1.Deployment) error {
 	var secretName string
 
 	for key, value := range deployment.Spec.Template.Annotations {
-		logging.Info("looking through annotation")
-
 		if key == AnnotationValidity {
 			validity, _ = strconv.Atoi(value)
 			logging.Info(fmt.Sprintf("validity set to %v", validity))
@@ -123,6 +122,7 @@ func (p *PeriklesHandler) clientFlow(accesses, name, kubeType string) error {
 
 	for _, host := range hosts {
 		_, err := p.addClientToMapping(host, name, kubeType)
+		logging.Info(fmt.Sprintf("added client %s to host %s", name, host))
 		if err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ func (p *PeriklesHandler) restartDeployment(ns, deploymentName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
-	deployment, err := p.Config.Kube.AppsV1().Deployments(p.Config.Namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	deployment, err := p.Config.Kube.AppsV1().Deployments(ns).Get(ctx, deploymentName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (p *PeriklesHandler) restartDeployment(ns, deploymentName string) error {
 		deployment.Spec.Template.Annotations[key] = value
 	}
 
-	deploy, err := p.Config.Kube.AppsV1().Deployments(p.Config.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+	deploy, err := p.Config.Kube.AppsV1().Deployments(ns).Update(ctx, deployment, metav1.UpdateOptions{})
 	if deploy != nil {
 		logging.Info(fmt.Sprintf("restarting deployment %s in ns %s", deploy.Name, deploy.Namespace))
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/agora/thales/odysseia"
+	"sync"
 )
 
 const (
@@ -15,6 +16,7 @@ type Config struct {
 	Kube      *thales.KubeClient
 	Mapping   odysseia.ServiceMapping
 	Cert      certificates.CertClient
+	Mutex     sync.Mutex
 	Namespace string
 	CrdName   string
 	TLSFiles  string

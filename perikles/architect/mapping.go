@@ -15,42 +15,47 @@ const (
 )
 
 func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType string, validity int) (*v1alpha.Mapping, error) {
-	mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
-	if err != nil {
-		return nil, err
-	}
+	var updatedMapping *v1alpha.Mapping
 
-	for i, service := range mapping.Spec.Services {
-		if service.Name == serviceName {
-			service.Active = true
-			service.Validity = validity
-			service.KubeType = kubeType
-			service.SecretName = secretName
-			mapping.Spec.Services[i] = service
-			logging.Debug(fmt.Sprintf("updating existing service mapping %s", service.Name))
-			updatedMapping, err := p.Config.Mapping.Update(mapping)
-			if err != nil {
-				return nil, err
-			}
+	err := retry(3, 2*time.Second, func() error {
+		p.Config.Mutex.Lock()
+		defer p.Config.Mutex.Unlock()
 
-			return updatedMapping, nil
+		mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
+		if err != nil {
+			return err
 		}
-	}
 
-	service := v1alpha.Service{
-		Name:       serviceName,
-		KubeType:   kubeType,
-		Namespace:  p.Config.Namespace,
-		SecretName: secretName,
-		Active:     true,
-		Validity:   validity,
-		Created:    time.Now().UTC().Format(timeFormat),
-		Clients:    []v1alpha.Client{},
-	}
-	mapping.Spec.Services = append(mapping.Spec.Services, service)
+		for i, service := range mapping.Spec.Services {
+			if service.Name == serviceName {
+				service.Active = true
+				service.Validity = validity
+				service.KubeType = kubeType
+				service.SecretName = secretName
+				mapping.Spec.Services[i] = service
+				updatedMapping, err = p.Config.Mapping.Update(mapping)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+		}
 
-	logging.Debug(fmt.Sprintf("updating new service mapping %s", serviceName))
-	updatedMapping, err := p.Config.Mapping.Update(mapping)
+		service := v1alpha.Service{
+			Name:       serviceName,
+			KubeType:   kubeType,
+			Namespace:  p.Config.Namespace,
+			SecretName: secretName,
+			Active:     true,
+			Validity:   validity,
+			Created:    time.Now().UTC().Format(timeFormat),
+			Clients:    []v1alpha.Client{},
+		}
+		mapping.Spec.Services = append(mapping.Spec.Services, service)
+		updatedMapping, err = p.Config.Mapping.Update(mapping)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -59,29 +64,38 @@ func (p *PeriklesHandler) addHostToMapping(serviceName, secretName, kubeType str
 }
 
 func (p *PeriklesHandler) addClientToMapping(hostName, clientName, kubeType string) (*v1alpha.Mapping, error) {
-	mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
-	if err != nil {
-		return nil, err
-	}
+	var updatedMapping *v1alpha.Mapping
 
-	client := v1alpha.Client{
-		Name:      clientName,
-		KubeType:  kubeType,
-		Namespace: p.Config.Namespace,
-	}
+	err := retry(3, 2*time.Second, func() error {
+		p.Config.Mutex.Lock()
+		defer p.Config.Mutex.Unlock()
 
-	for i, service := range mapping.Spec.Services {
-		if service.Name == hostName {
-			for _, existingClient := range service.Clients {
-				if existingClient.Name == clientName {
-					return mapping, nil
-				}
-			}
-			mapping.Spec.Services[i].Clients = append(mapping.Spec.Services[i].Clients, client)
+		mapping, err := p.Config.Mapping.Get(p.Config.CrdName)
+		if err != nil {
+			return err
 		}
-	}
 
-	updatedMapping, err := p.Config.Mapping.Update(mapping)
+		client := v1alpha.Client{
+			Name:      clientName,
+			KubeType:  kubeType,
+			Namespace: p.Config.Namespace,
+		}
+
+		for i, service := range mapping.Spec.Services {
+			if service.Name == hostName {
+				for _, existingClient := range service.Clients {
+					if existingClient.Name == clientName {
+						return nil // Already exists
+					}
+				}
+				mapping.Spec.Services[i].Clients = append(mapping.Spec.Services[i].Clients, client)
+			}
+		}
+
+		updatedMapping, err = p.Config.Mapping.Update(mapping)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -90,27 +104,16 @@ func (p *PeriklesHandler) addClientToMapping(hostName, clientName, kubeType stri
 }
 
 func (p *PeriklesHandler) loopForMappingUpdates() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(1 * time.Hour)
 	for {
 		select {
 		case <-ticker.C:
 			err := p.checkMappingForUpdates()
-			ticker = time.NewTicker(1 * time.Hour)
 			if err != nil {
 				logging.Error(err.Error())
 			}
 		}
 	}
-}
-
-func (p *PeriklesHandler) restartKubeResource(ns, name, kubeType string) error {
-	switch kubeType {
-	case "Deployment":
-		err := p.restartDeployment(ns, name)
-		return err
-	}
-
-	return nil
 }
 
 func (p *PeriklesHandler) cleanUpMapping(serviceToRemove string) error {
@@ -186,10 +189,6 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 			return err
 		}
 
-		if service.Name == "solon" {
-			redeploy = true
-		}
-
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
@@ -241,6 +240,18 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 			if err != nil {
 				return err
 			}
+
+			// all clients need to be restarted within an hour a staggered to avoid conflicts
+			for _, client := range service.Clients {
+				// there is some time between a secret update and that secret being updated in the running pod
+				err := retry(20, 1*time.Second, func() error {
+					return p.restartDeployment(client.Namespace, client.Name)
+				})
+
+				if err != nil {
+					logging.Error(fmt.Sprintf("failed to restart deployment: %s", client.Name))
+				}
+			}
 		}
 	}
 
@@ -267,4 +278,16 @@ func calculateTimeDifference(valid int, created string) (bool, error) {
 	}
 
 	return redeploy, nil
+}
+
+func retry(attempts int, delay time.Duration, fn func() error) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		err = fn()
+		if err == nil {
+			return nil
+		}
+		time.Sleep(delay)
+	}
+	return err
 }

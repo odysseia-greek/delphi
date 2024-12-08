@@ -81,7 +81,8 @@ func TestCheckForElasticAnnotations(t *testing.T) {
 		}
 
 		err := handler.checkForElasticAnnotations(deployment, nil)
-		assert.NotNil(t, err)
+		// a warning should be printed
+		assert.Nil(t, err)
 	})
 }
 
@@ -100,7 +101,7 @@ func TestGenerateCiliumNetworkPolicyInL3L4Mode(t *testing.T) {
 			},
 		}
 
-		policy := handler.generateCiliumNetworkPolicy(deployment, nil, "access-value", "role-value")
+		policy := handler.generateCiliumNetworkPolicyElastic(deployment, nil, "access-value", "role-value")
 		assert.NotNil(t, policy)
 		assert.Equal(t, "restrict-elasticsearch-access-test-deployment", policy.Name)
 		assert.Equal(t, "test-namespace", policy.Namespace)
@@ -117,7 +118,7 @@ func TestGenerateCiliumNetworkPolicyInL3L4Mode(t *testing.T) {
 			},
 		}
 
-		policy := handler.generateCiliumNetworkPolicy(nil, job, "access-value", "role-value")
+		policy := handler.generateCiliumNetworkPolicyElastic(nil, job, "access-value", "role-value")
 		assert.NotNil(t, policy)
 		assert.Equal(t, "restrict-elasticsearch-access-test-job", policy.Name)
 		assert.Equal(t, "test-namespace", policy.Namespace)
@@ -127,7 +128,7 @@ func TestGenerateCiliumNetworkPolicyInL3L4Mode(t *testing.T) {
 	})
 
 	t.Run("NilInputsWithoutL7Rules", func(t *testing.T) {
-		policy := handler.generateCiliumNetworkPolicy(nil, nil, "access-value", "role-value")
+		policy := handler.generateCiliumNetworkPolicyElastic(nil, nil, "access-value", "role-value")
 		assert.Nil(t, policy)
 	})
 }
@@ -159,7 +160,7 @@ func TestGenerateCiliumNetworkPolicyInL7Mode(t *testing.T) {
 			},
 		}
 
-		policy := handler.generateCiliumNetworkPolicy(deployment, nil, "access-value", "role-value")
+		policy := handler.generateCiliumNetworkPolicyElastic(deployment, nil, "access-value", "role-value")
 		assert.NotNil(t, policy)
 
 		// Check that L7 rules are present
@@ -191,7 +192,7 @@ func TestGenerateCiliumNetworkPolicyInL7Mode(t *testing.T) {
 			},
 		}
 
-		policy := handler.generateCiliumNetworkPolicy(nil, job, "access-value", "role-value")
+		policy := handler.generateCiliumNetworkPolicyElastic(nil, job, "access-value", "role-value")
 		assert.NotNil(t, policy)
 
 		// Check that L7 rules are present
@@ -204,7 +205,7 @@ func TestGenerateCiliumNetworkPolicyInL7Mode(t *testing.T) {
 	})
 
 	t.Run("NilInputsWithL7Rules", func(t *testing.T) {
-		policy := handler.generateCiliumNetworkPolicy(nil, nil, "access-value", "role-value")
+		policy := handler.generateCiliumNetworkPolicyElastic(nil, nil, "access-value", "role-value")
 		assert.Nil(t, policy)
 	})
 }
@@ -218,37 +219,57 @@ func TestL7RulesGeneration(t *testing.T) {
 
 	t.Run("GetHTTPRulesForRoles", func(t *testing.T) {
 		roles := map[string][]api.PortRuleHTTP{
-			CreatorElasticRole: {
-				{Method: "^GET$", Path: "^/$"}, // Default health check endpoint
-			},
 			SeederElasticRole: {
-				{Method: "^PUT$", Path: "^/index/.*$"},
-				{Method: "^POST$", Path: "^/index/_create$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check endpoint
+				{Method: "^DELETE$", Path: "^/index"},
+				{Method: "^PUT$", Path: "^/index"},
+				{Method: "^PUT$", Path: "^/_ilm/policy/index_policy$"},
+				{Method: "^PUT$", Path: "^/index/_create$"},
+				{Method: "^POST$", Path: "^/index/_bulk$"},
+				{Method: "^POST$", Path: "^/index/_doc(\\?.*)?$"},
+				{Method: "^GET$", Path: "^/$"}, // Default health check
 			},
 			HybridElasticRole: {
-				{Method: "^POST$", Path: "^/index/.*$"},
+				{Method: "^DELETE$", Path: "^/index"},
+				{Method: "^GET", Path: "^/index"},
+				{Method: "^PUT$", Path: "^/index"},
+				{Method: "^PUT$", Path: "^/_ilm/policy/index_policy$"},
 				{Method: "^PUT$", Path: "^/index/_create$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check endpoint
+				{Method: "^POST$", Path: "^/index/_update/[^/]+$"},
+				{Method: "^POST$", Path: "^/index/_doc(\\?.*)?$"},
+				{Method: "^POST$", Path: "^/index/_search(\\?.*)?$"},
+				{Method: "^POST$", Path: "^/_search/scroll(\\?.*)?$"},
+				{Method: "^GET$", Path: "^/$"}, // Default health check
+			},
+			CreatorElasticRole: {
+				{Method: "^PUT$", Path: "^/index/_create/.*$"},
+				{Method: "^GET$", Path: "^/$"}, // Default health check
 			},
 			ApiElasticRole: {
-				{Method: "^POST$", Path: "^/index/.*$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check endpoint
+				{Method: "^POST$", Path: "^/index/_search(\\?.*)?$"},
+				{Method: "^POST$", Path: "^/_search/scroll(\\?.*)?$"},
+				{Method: "^GET$", Path: "^/$"}, // Default health check
 			},
 			AliasElasticRole: {
-				{Method: "^GET$", Path: "^/index/_search/??.*$"},
-				{Method: "^POST$", Path: "^/index/.*$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check endpoint
+				{Method: "^DELETE$", Path: "^/index"},
+				{Method: "^PUT$", Path: "^/index"},
+				{Method: "^PUT$", Path: "^/_ilm/policy/index_policy$"},
+				{Method: "^PUT$", Path: "^/index/.*$"},
+				{Method: "^PUT$", Path: "^/%s(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})?$"},
+				{Method: "^PUT$", Path: "/index(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})/_aliases/index$"},
+				{Method: "^POST$", Path: "^/index/_bulk$"},
+				{Method: "^GET$", Path: "^/$"}, // Default health check
 			},
 		}
 
 		for role, expectedRules := range roles {
-			rules := handler.getHTTPRulesForRoleWithRegex(role, "index")
-			assert.Equal(t, len(expectedRules), len(rules))
-			for i, rule := range rules {
-				assert.Equal(t, expectedRules[i].Method, rule.Method)
-				assert.Equal(t, expectedRules[i].Path, rule.Path)
-			}
+			t.Run(fmt.Sprintf("Role=%s", role), func(t *testing.T) {
+				rules := handler.getHTTPRulesForRoleWithRegex(role, "index")
+				assert.Equal(t, len(expectedRules), len(rules), "Rule count mismatch for role: %s", role)
+				for i, rule := range rules {
+					assert.Equal(t, expectedRules[i].Method, rule.Method, "Mismatch in Method for role: %s at rule %d", role, i)
+					assert.Equal(t, expectedRules[i].Path, rule.Path, "Mismatch in Path for role: %s at rule %d", role, i)
+				}
+			})
 		}
 	})
 
@@ -264,10 +285,11 @@ func TestL7RulesGeneration(t *testing.T) {
 		rules := handler.determineSideCars(containers, initContainers)
 
 		expectedRules := []api.PortRuleHTTP{
-			{Method: "POST", Path: fmt.Sprintf("^/%s/*", config.TracingElasticIndex)},
-			{Method: "PUT", Path: fmt.Sprintf("^/%s/_create$", config.TracingElasticIndex)},
-			{Method: "POST", Path: fmt.Sprintf("^/%s/*", config.MetricsElasticIndex)},
-			{Method: "PUT", Path: fmt.Sprintf("^/%s/_create$", config.MetricsElasticIndex)},
+			{Method: "^POST$", Path: fmt.Sprintf("^/%s/_update/.*$", config.TracingElasticIndex)},
+			{Method: "^POST$", Path: fmt.Sprintf("^/%s-.*/_update/.*$", config.TracingElasticIndex)},
+			{Method: "^PUT$", Path: fmt.Sprintf("^/%s$", config.TracingElasticIndex)},
+			{Method: "^PUT$", Path: fmt.Sprintf("^/%s/.*$", config.TracingElasticIndex)},
+			{Method: "^PUT$", Path: fmt.Sprintf("^/%s-.*/.*$", config.TracingElasticIndex)},
 		}
 
 		assert.Equal(t, len(expectedRules), len(rules))
@@ -275,5 +297,57 @@ func TestL7RulesGeneration(t *testing.T) {
 			assert.Equal(t, expectedRules[i].Method, rule.Method)
 			assert.Equal(t, expectedRules[i].Path, rule.Path)
 		}
+	})
+}
+
+// best to create an integration test here at some point using KWOK
+func TestGenerateVaultNetworkPolicy(t *testing.T) {
+	handler := PeriklesHandler{
+		Config: &Config{
+			Kube:   kubernetes.NewFakeKubeClient(),
+			L7Mode: false,
+		},
+	}
+
+	t.Run("GenerateValidVaultPolicy", func(t *testing.T) {
+		err := handler.generateVaultNetworkPolicy("test-app", "test-namespace")
+		assert.Nil(t, err)
+	})
+}
+
+// best to create an integration test here at some point using KWOK
+func TestGenerateServiceToServiceNetworkPolicy(t *testing.T) {
+	handler := PeriklesHandler{
+		Config: &Config{
+			Kube:   kubernetes.NewFakeKubeClient(),
+			L7Mode: false,
+		},
+	}
+
+	t.Run("GeneratePolicyWithSingleHost", func(t *testing.T) {
+		containers := []v2.Container{
+			{Name: "test-container"},
+		}
+
+		hostsAnnotation := "test-host"
+		handler.generateServiceToServiceNetworkPolicy("test-app", "test-namespace", hostsAnnotation, containers)
+	})
+
+	t.Run("GeneratePolicyWithMultipleHosts", func(t *testing.T) {
+		containers := []v2.Container{
+			{Name: "test-container"},
+		}
+
+		hostsAnnotation := "test-host1;test-host2"
+		handler.generateServiceToServiceNetworkPolicy("test-app", "test-namespace", hostsAnnotation, containers)
+	})
+
+	t.Run("GeneratePolicyWithVaultAccess", func(t *testing.T) {
+		containers := []v2.Container{
+			{Name: "ptolemaios"},
+		}
+
+		hostsAnnotation := "test-host"
+		handler.generateServiceToServiceNetworkPolicy("test-app", "test-namespace", hostsAnnotation, containers)
 	})
 }
