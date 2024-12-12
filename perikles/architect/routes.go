@@ -15,6 +15,7 @@ func InitRoutes(config Config) *mux.Router {
 	serveMux.HandleFunc("/perikles/v1/validate", middleware.Adapt(periklesHandler.validate, middleware.ValidateRestMethod("POST"), middleware.LogRequestDetails(), middleware.SetCorsHeaders()))
 
 	go periklesHandler.loopForMappingUpdates()
+	go periklesHandler.startProcessingPendingUpdates()
 
 	return serveMux
 }

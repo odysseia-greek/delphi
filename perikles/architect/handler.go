@@ -13,10 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 type PeriklesHandler struct {
-	Config *Config
+	Config         *Config
+	Mutex          sync.Mutex
+	PendingUpdates map[string][]MappingUpdate
 }
 
 // pingPong pongs the ping

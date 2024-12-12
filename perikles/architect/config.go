@@ -5,18 +5,25 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/agora/thales/odysseia"
-	"sync"
 )
 
 const (
 	ORGANISATION string = "odysseia-greek"
 )
 
+type MappingUpdate struct {
+	HostName     string
+	ClientName   string
+	KubeType     string
+	SecretName   string
+	Validity     int
+	IsHostUpdate bool
+}
+
 type Config struct {
 	Kube      *thales.KubeClient
 	Mapping   odysseia.ServiceMapping
 	Cert      certificates.CertClient
-	Mutex     sync.Mutex
 	Namespace string
 	CrdName   string
 	TLSFiles  string

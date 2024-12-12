@@ -302,7 +302,6 @@ func (p *PeriklesHandler) getHTTPRulesForRoleWithRegex(role, index string) []api
 	case AliasElasticRole:
 		rules = append(rules, api.PortRuleHTTP{Method: "^DELETE$", Path: fmt.Sprintf("^/%s", index)})
 		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s", index)})
 		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})?$", index)})
 		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})/_aliases/%s$", index, index)})
 		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/_ilm/policy/%s_policy$", index)})

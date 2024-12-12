@@ -252,10 +252,10 @@ func TestL7RulesGeneration(t *testing.T) {
 			AliasElasticRole: {
 				{Method: "^DELETE$", Path: "^/index"},
 				{Method: "^PUT$", Path: "^/index"},
+				{Method: "^PUT$", Path: "^/index(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})?$"},
+				{Method: "^PUT$", Path: "^/index(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})/_aliases/index$"},
 				{Method: "^PUT$", Path: "^/_ilm/policy/index_policy$"},
 				{Method: "^PUT$", Path: "^/index/.*$"},
-				{Method: "^PUT$", Path: "^/%s(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})?$"},
-				{Method: "^PUT$", Path: "/index(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})/_aliases/index$"},
 				{Method: "^POST$", Path: "^/index/_bulk$"},
 				{Method: "^GET$", Path: "^/$"}, // Default health check
 			},
