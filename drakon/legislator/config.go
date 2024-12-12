@@ -1,33 +1,27 @@
 package legislator
 
 import (
+	"fmt"
 	"github.com/odysseia-greek/agora/aristoteles"
-	"github.com/odysseia-greek/agora/aristoteles/models"
 	"github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/logging"
 )
 
-func CreateNewConfig(env string) (*DrakonHandler, error) {
-	healthCheck := true
-	if env == "DEVELOPMENT" {
-		healthCheck = false
-	}
-
+func CreateNewConfig() (*DrakonHandler, error) {
 	tls := config.BoolFromEnv(config.EnvTlSKey)
-
-	var cfg models.Config
-
-	cfg = aristoteles.ElasticConfig(env, false, tls)
+	cfg, err := aristoteles.ElasticConfig(tls)
+	if err != nil {
+		logging.Error(fmt.Sprintf("failed to create Elastic client operations will be interupted, %s", err.Error()))
+	}
 
 	elastic, err := aristoteles.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	if healthCheck {
-		err := aristoteles.HealthCheck(elastic)
-		if err != nil {
-			return nil, err
-		}
+	err = aristoteles.HealthCheck(elastic)
+	if err != nil {
+		return nil, err
 	}
 
 	podName := config.ParsedPodNameFromEnv()

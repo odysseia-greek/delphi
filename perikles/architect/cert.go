@@ -39,6 +39,7 @@ func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretNam
 
 		newAnnotation := make(map[string]string)
 		newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)
+		newAnnotation[IgnoreInGitOps] = "true"
 		immutable := false
 
 		scr := corev1.Secret{
@@ -55,10 +56,12 @@ func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretNam
 			Type:      corev1.SecretTypeTLS,
 		}
 
-		_, err := p.Config.Kube.CoreV1().Secrets(p.Config.Namespace).Update(context.Background(), &scr, metav1.UpdateOptions{})
+		secret, err := p.Config.Kube.CoreV1().Secrets(p.Config.Namespace).Update(context.Background(), &scr, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
+
+		logging.Debug(fmt.Sprintf("secret %s created", secret.Name))
 		return nil
 	}
 
@@ -76,10 +79,12 @@ func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretNam
 		Data:      certData,
 		Type:      corev1.SecretTypeTLS,
 	}
-	_, err = p.Config.Kube.CoreV1().Secrets(p.Config.Namespace).Create(context.Background(), scr, metav1.CreateOptions{})
+	secret, err := p.Config.Kube.CoreV1().Secrets(p.Config.Namespace).Create(context.Background(), scr, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
+
+	logging.Debug(fmt.Sprintf("secret %s created", secret.Name))
 
 	return nil
 }

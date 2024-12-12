@@ -7,21 +7,47 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/agora/plato/tlsmanager"
 	"github.com/odysseia-greek/delphi/solon/lawgiver"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
 
-const standardPort = ":5443"
+const defaultPort = ":5443"
+const SolonService string = "solon"
+
+var currentTLSConfig *tls.Config
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = standardPort
+	port := getEnv("PORT", defaultPort)
+
+	logBanner()
+
+	ctx := context.Background()
+
+	// Initialize Solon handler
+	solonHandler, err := lawgiver.CreateNewConfig(ctx)
+	if err != nil {
+		logging.Error(fmt.Sprintf("Failed to initialize Solon handler: %v", err))
+		log.Fatal("Startup failure")
 	}
-	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=SOLON
+
+	// Setup server
+	srv := lawgiver.InitRoutes(solonHandler)
+	logging.System(fmt.Sprintf("TLS enabled: %v", solonHandler.TLSEnabled))
+	logging.System(fmt.Sprintf("Running on port: %s", port))
+
+	if solonHandler.TLSEnabled {
+		startTLSServer(port, srv)
+	} else {
+		startHTTPServer(port, srv)
+	}
+}
+
+func logBanner() {
 	logging.System(`
   _____  ___   _       ___   ____  
  / ___/ /   \ | |     /   \ |    \ 
@@ -32,66 +58,72 @@ func main() {
   \___| \___/ |_____| \___/ |__|__|
 `)
 	logging.System("\"αὐτοὶ γὰρ οὐκ οἷοί τε ἦσαν αὐτὸ ποιῆσαι Ἀθηναῖοι: ὁρκίοισι γὰρ μεγάλοισι κατείχοντο δέκα ἔτεα χρήσεσθαι νόμοισι τοὺς ἄν σφι Σόλων θῆται.\"")
-	logging.System("\"since the Athenians themselves could not do that, for they were bound by solemn oaths to abide for ten years by whatever laws Solon should make.\"")
-	logging.System("starting up.....")
-	logging.Debug("starting up and getting env variables")
+	logging.System("\"Since the Athenians themselves could not do that, for they were bound by solemn oaths to abide for ten years by whatever laws Solon should make.\"")
+	logging.System("Starting up...")
+}
 
-	env := os.Getenv("ENV")
-	ctx := context.Background()
-
-	solonHandler, err := lawgiver.CreateNewConfig(env, ctx)
-	if err != nil {
-		logging.Error(err.Error())
-		log.Fatal("death has found me")
+func getEnv(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
 	}
+	return value
+}
 
-	srv := lawgiver.InitRoutes(solonHandler)
-	logging.System(fmt.Sprintf("%s : %v", "TLS enabled", solonHandler.TLSEnabled))
-	logging.System(fmt.Sprintf("%s : %s", "running on port", port))
-
-	if solonHandler.TLSEnabled {
-		rootPath := os.Getenv("CERT_ROOT")
-		if rootPath == "" {
-			logging.Error("rootpath is empty no certs can be loaded")
-		}
-		fp := filepath.Join(rootPath, "solon", "tls.pem")
-		caFromFile, _ := os.ReadFile(fp)
-		ca := x509.NewCertPool()
-		ca.AppendCertsFromPEM(caFromFile)
-		httpsServer := createTlSConfig(port, ca, srv)
-
-		logging.Debug("loading cert files from mount")
-		certPath, keyPath := lawgiver.RetrieveCertPathLocally()
-		err = httpsServer.ListenAndServeTLS(certPath, keyPath)
-		if err != nil {
-			log.Fatal("death has found me")
-		}
-	} else {
-		err = http.ListenAndServe(port, srv)
-		if err != nil {
-			panic(err)
-		}
+func startHTTPServer(port string, srv *mux.Router) {
+	logging.System("Starting HTTP server...")
+	if err := http.ListenAndServe(port, srv); err != nil {
+		logging.Error(fmt.Sprintf("HTTP server error: %v", err))
+		log.Fatal("Server shutdown")
 	}
 }
 
-func createTlSConfig(port string, ca *x509.CertPool, server *mux.Router) *http.Server {
-	cfg := &tls.Config{
-		MinVersion:       tls.VersionTLS12,
-		CurvePreferences: []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-		//ClientAuth: tls.RequireAndVerifyClientCert,
-		ClientCAs: ca,
+func startTLSServer(port string, srv *mux.Router) {
+	gracePeriod := 1 * time.Hour
+	pollInterval := 5 * time.Minute
+
+	rootPath := os.Getenv("CERT_ROOT")
+	if rootPath == "" {
+		logging.Error(fmt.Sprintf("CERT_ROOT environment variable is empty. Defaulting to: %s", tlsmanager.DefaultCertRoot))
+		rootPath = tlsmanager.DefaultCertRoot
 	}
 
-	return &http.Server{
-		Addr:         port,
-		Handler:      server,
-		TLSConfig:    cfg,
-		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
+	// Load CA certificate for self-signed certificate validation
+	caPath := filepath.Join(rootPath, SolonService, "tls.pem")
+	caFromFile, err := os.ReadFile(caPath)
+	if err != nil {
+		log.Fatalf("Failed to read CA certificate: %v", err)
+	}
+
+	ca := x509.NewCertPool()
+	if !ca.AppendCertsFromPEM(caFromFile) {
+		log.Fatalf("Failed to append CA certificate from: %s", caPath)
+	}
+
+	// Initialize the TLSManager
+	tlsManager := tlsmanager.NewTLSManager(SolonService, rootPath, gracePeriod)
+
+	// Load the initial certificates
+	if err := tlsManager.LoadCertificates(); err != nil {
+		log.Fatalf("Failed to load initial certificates: %v", err)
+	}
+
+	// Start watching for certificate changes
+	tlsManager.WatchCertificates(pollInterval)
+
+	// Create and configure the HTTPS server
+	server := &http.Server{
+		Addr:    port,
+		Handler: srv,
+		TLSConfig: &tls.Config{
+			GetConfigForClient: func(clientHello *tls.ClientHelloInfo) (*tls.Config, error) {
+				return tlsManager.GetTLSConfig(), nil
+			},
+		},
+	}
+
+	logging.System("Starting TLS server...")
+	if err := server.ListenAndServeTLS("", ""); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/odysseia-greek/agora/plato/certificates"
 	"github.com/odysseia-greek/agora/plato/models"
 	kubernetes "github.com/odysseia-greek/agora/thales"
-	"github.com/odysseia-greek/delphi/perikles/config"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"k8s.io/api/admission/v1beta1"
@@ -18,7 +17,7 @@ import (
 )
 
 func TestPingPongRoute(t *testing.T) {
-	testConfig := config.Config{}
+	testConfig := Config{}
 	router := InitRoutes(testConfig)
 	expected := "{\"result\":\"pong\"}"
 
@@ -46,7 +45,7 @@ func TestValidityFlow(t *testing.T) {
 	t.Run("EmptyBody", func(t *testing.T) {
 		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
-		testConfig := config.Config{
+		testConfig := Config{
 			Kube:      fakeKube,
 			Cert:      cert,
 			Namespace: ns,
@@ -64,7 +63,7 @@ func TestValidityFlow(t *testing.T) {
 	})
 
 	t.Run("UnparseableBody", func(t *testing.T) {
-		testConfig := config.Config{
+		testConfig := Config{
 			Kube:      nil,
 			Cert:      cert,
 			Namespace: ns,
@@ -88,7 +87,7 @@ func TestValidityFlow(t *testing.T) {
 		assert.Nil(t, err)
 		arNilJson, err := io.ReadAll(file)
 		assert.Nil(t, err)
-		testConfig := config.Config{
+		testConfig := Config{
 			Kube:      nil,
 			Cert:      cert,
 			Namespace: ns,
@@ -107,7 +106,7 @@ func TestValidityFlow(t *testing.T) {
 	})
 
 	t.Run("ValidityRequestValid", func(t *testing.T) {
-		testConfig := config.Config{
+		testConfig := Config{
 			Kube:      nil,
 			Cert:      cert,
 			Namespace: ns,

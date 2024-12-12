@@ -1,5 +1,5 @@
 # Base build
-FROM golang:1.22-alpine as base
+FROM golang:1.23-alpine as base
 
 ARG project_name
 ARG TARGETOS
@@ -33,7 +33,7 @@ ENV project_name=${project_name}
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /app/${project_name}
 
 # Production build
-FROM alpine:3.19.1 as prod
+FROM alpine:3.20.3 as prod
 WORKDIR /app
 
 ARG project_name

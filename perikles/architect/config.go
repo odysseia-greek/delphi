@@ -1,4 +1,4 @@
-package config
+package architect
 
 import (
 	"github.com/odysseia-greek/agora/plato/certificates"
@@ -7,6 +7,19 @@ import (
 	"github.com/odysseia-greek/agora/thales/odysseia"
 )
 
+const (
+	ORGANISATION string = "odysseia-greek"
+)
+
+type MappingUpdate struct {
+	HostName     string
+	ClientName   string
+	KubeType     string
+	SecretName   string
+	Validity     int
+	IsHostUpdate bool
+}
+
 type Config struct {
 	Kube      *thales.KubeClient
 	Mapping   odysseia.ServiceMapping
@@ -14,21 +27,17 @@ type Config struct {
 	Namespace string
 	CrdName   string
 	TLSFiles  string
+	L7Mode    bool
 }
 
 func CreateNewConfig(env string) (*Config, error) {
-	outOfClusterKube := false
-	if env == "DEVELOPMENT" {
-		outOfClusterKube = true
-	}
-
-	kube, err := thales.CreateKubeClient(outOfClusterKube)
+	kube, err := thales.CreateKubeClient(false)
 	if err != nil {
 		return nil, err
 	}
 
 	org := []string{
-		"odysseia",
+		ORGANISATION,
 	}
 
 	mapping, err := odysseia.NewServiceMappingImpl(kube.RestConfig())
@@ -44,6 +53,7 @@ func CreateNewConfig(env string) (*Config, error) {
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
 	crd := config.StringFromEnv(config.EnvCrdName, config.DefaultCrdName)
 	tlsFiles := config.StringFromEnv(config.EnvTLSFiles, config.DefaultTLSFileLocation)
+	l7Mode := config.BoolFromEnv("L7_MODE")
 
 	return &Config{
 		Kube:      kube,
@@ -52,5 +62,6 @@ func CreateNewConfig(env string) (*Config, error) {
 		CrdName:   crd,
 		TLSFiles:  tlsFiles,
 		Mapping:   mapping,
+		L7Mode:    l7Mode,
 	}, nil
 }

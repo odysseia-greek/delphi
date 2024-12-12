@@ -3,11 +3,10 @@ package architect
 import (
 	"github.com/gorilla/mux"
 	"github.com/odysseia-greek/agora/plato/middleware"
-	"github.com/odysseia-greek/delphi/perikles/config"
 )
 
 // InitRoutes to start up a mux router and return the routes
-func InitRoutes(config config.Config) *mux.Router {
+func InitRoutes(config Config) *mux.Router {
 	serveMux := mux.NewRouter()
 
 	periklesHandler := PeriklesHandler{Config: &config}
@@ -16,6 +15,7 @@ func InitRoutes(config config.Config) *mux.Router {
 	serveMux.HandleFunc("/perikles/v1/validate", middleware.Adapt(periklesHandler.validate, middleware.ValidateRestMethod("POST"), middleware.LogRequestDetails(), middleware.SetCorsHeaders()))
 
 	go periklesHandler.loopForMappingUpdates()
+	go periklesHandler.startProcessingPendingUpdates()
 
 	return serveMux
 }

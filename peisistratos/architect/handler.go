@@ -224,7 +224,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 			port := fmt.Sprintf("820%v", address)
 			vaultPodDns := fmt.Sprintf("https://localhost:%s", port)
 
-			tlsConfig := diogenes.CreateTLSConfig(true, ca, cert, key, secretPath)
+			tlsConfig := diogenes.CreateTLSConfig(ca, cert, key, secretPath)
 			tempClient, err := diogenes.NewVaultClient(vaultPodDns, init.RootToken, tlsConfig)
 			if err != nil {
 				return err
@@ -252,7 +252,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 		} else {
 			vaultPodDns := fmt.Sprintf("https://%s.%s.svc.cluster.local:%v", server, p.Namespace, 8200)
 
-			tlsConfig := diogenes.CreateTLSConfig(false, ca, cert, key, secretPath)
+			tlsConfig := diogenes.CreateTLSConfig(ca, cert, key, secretPath)
 			tempClient, err := diogenes.NewVaultClient(vaultPodDns, init.RootToken, tlsConfig)
 			if err != nil {
 				return err

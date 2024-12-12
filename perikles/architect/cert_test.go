@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/odysseia-greek/agora/plato/certificates"
 	kubernetes "github.com/odysseia-greek/agora/thales"
-	"github.com/odysseia-greek/delphi/perikles/config"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +31,7 @@ func TestCertCreation(t *testing.T) {
 	t.Run("SecretNewlyCreated", func(t *testing.T) {
 		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
-		testConfig := config.Config{
+		testConfig := Config{
 			Kube:      fakeKube,
 			Cert:      cert,
 			Namespace: ns,
@@ -46,7 +45,7 @@ func TestCertCreation(t *testing.T) {
 	t.Run("SecretAlreadyExists", func(t *testing.T) {
 		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
-		testConfig := config.Config{
+		testConfig := Config{
 			Kube:      fakeKube,
 			Cert:      cert,
 			Namespace: ns,

@@ -27,9 +27,7 @@ func main() {
 
 	logging.System("creating config")
 
-	env := os.Getenv("ENV")
-
-	handler, err := architect.CreateNewConfig(env)
+	handler, err := architect.CreateNewConfig()
 	if err != nil {
 		log.Fatal("death has found me")
 	}

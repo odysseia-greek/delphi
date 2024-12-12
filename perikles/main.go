@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/perikles/architect"
-	"github.com/odysseia-greek/delphi/perikles/config"
 	"log"
 	"net/http"
 	"os"
@@ -42,7 +41,7 @@ func main() {
 
 	env := os.Getenv("ENV")
 
-	periklesConfig, err := config.CreateNewConfig(env)
+	periklesConfig, err := architect.CreateNewConfig(env)
 	if err != nil {
 		log.Fatal("death has found me")
 	}
@@ -79,19 +78,17 @@ func main() {
 		createdCrd, err := handler.Config.Mapping.Create(mapping)
 		if err != nil {
 			logging.Error(err.Error())
+		} else {
+			logging.Debug(fmt.Sprintf("created mapping %s", createdCrd.Name))
 		}
-
-		logging.Debug(fmt.Sprintf("created mapping %s", createdCrd.Name))
-
 	}
 
 	logging.Debug("init routes")
 	srv := architect.InitRoutes(*periklesConfig)
 
 	cfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
+		MinVersion:       tls.VersionTLS12,
+		CurvePreferences: []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
@@ -100,7 +97,7 @@ func main() {
 		},
 	}
 
-	logging.Debug("setting up server with https")
+	logging.System("setting up server with https")
 
 	httpsServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
@@ -109,10 +106,11 @@ func main() {
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
 	}
 
-	logging.Debug("loading cert files from mount")
+	logging.System("loading cert files from mount")
 	certFile := filepath.Join(periklesConfig.TLSFiles, crtFileName)
 	keyFile := filepath.Join(periklesConfig.TLSFiles, keyFileName)
 
+	logging.System(fmt.Sprintf("starting server on address: %s", port))
 	err = httpsServer.ListenAndServeTLS(certFile, keyFile)
 	if err != nil {
 		log.Fatal(err)
