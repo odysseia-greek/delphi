@@ -3,10 +3,10 @@ module github.com/odysseia-greek/delphi/ptolemaios
 go 1.23
 
 require (
-	github.com/odysseia-greek/agora/diogenes v0.1.5
-	github.com/odysseia-greek/agora/plato v0.1.45
+	github.com/odysseia-greek/agora/diogenes v0.1.8
+	github.com/odysseia-greek/agora/plato v0.1.48
 	github.com/stretchr/testify v1.10.0
-	google.golang.org/grpc v1.68.0
+	google.golang.org/grpc v1.68.1
 	google.golang.org/protobuf v1.35.2
 )
 

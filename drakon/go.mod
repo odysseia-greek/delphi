@@ -3,8 +3,8 @@ module github.com/odysseia-greek/delphi/drakon
 go 1.23.0
 
 require (
-	github.com/odysseia-greek/agora/aristoteles v0.1.8
-	github.com/odysseia-greek/agora/plato v0.1.45
+	github.com/odysseia-greek/agora/aristoteles v0.1.12
+	github.com/odysseia-greek/agora/plato v0.1.48
 	github.com/stretchr/testify v1.10.0
 )
 

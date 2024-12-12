@@ -21,15 +21,22 @@ func main() {
 	}
 
 	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=PTOLEMAIOS
-	logging.System("\n ____  ______   ___   _        ___  ___ ___   ____  ____  ___   _____\n|    \\|      | /   \\ | |      /  _]|   |   | /    ||    |/   \\ / ___/\n|  o  )      ||     || |     /  [_ | _   _ ||  o  | |  ||     (   \\_ \n|   _/|_|  |_||  O  || |___ |    _]|  \\_/  ||     | |  ||  O  |\\__  |\n|  |    |  |  |     ||     ||   [_ |   |   ||  _  | |  ||     |/  \\ |\n|  |    |  |  |     ||     ||     ||   |   ||  |  | |  ||     |\\    |\n|__|    |__|   \\___/ |_____||_____||___|___||__|__||____|\\___/  \\___|\n                                                                     \n")
+	logging.System(`
+ ____  ______   ___   _        ___  ___ ___   ____  ____  ___   _____
+|    \|      | /   \ | |      /  _]|   |   | /    ||    |/   \ / ___/
+|  o  )      ||     || |     /  [_ | _   _ ||  o  | |  ||     (   \_ 
+|   _/|_|  |_||  O  || |___ |    _]|  \_/  ||     | |  ||  O  |\__  |
+|  |    |  |  |     ||     ||   [_ |   |   ||  _  | |  ||     |/  \ |
+|  |    |  |  |     ||     ||     ||   |   ||  |  | |  ||     |\    |
+|__|    |__|   \___/ |_____||_____||___|___||__|__||____|\___/  \___|
+                                                                     
+`)
 	logging.System("\"Σωτήρ\"")
 	logging.System("\"savior\"")
 	logging.System("starting up.....")
 	logging.System("starting up and getting env variables")
 
-	env := os.Getenv("ENV")
-
-	ambassador, err := diplomat.CreateNewConfig(env)
+	ambassador, err := diplomat.CreateNewConfig()
 	if err != nil {
 		log.Fatalf("error creating TraceServiceClient: %v", err)
 	}

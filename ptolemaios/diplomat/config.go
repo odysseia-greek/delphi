@@ -6,13 +6,13 @@ import (
 	"github.com/odysseia-greek/agora/plato/logging"
 )
 
-func CreateNewConfig(env string) (*AmbassadorServiceImpl, error) {
+func CreateNewConfig() (*AmbassadorServiceImpl, error) {
 	http, err := config.CreateOdysseiaClient()
 	if err != nil {
 		return nil, err
 	}
 
-	vault, err := diogenes.CreateVaultClient(env, true, false)
+	vault, err := diogenes.CreateVaultClient(true)
 	if err != nil {
 		logging.Error(err.Error())
 	}

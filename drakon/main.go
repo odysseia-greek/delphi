@@ -28,9 +28,7 @@ func main() {
 
 	logging.Debug("creating config")
 
-	env := os.Getenv("ENV")
-
-	handler, err := legislator.CreateNewConfig(env)
+	handler, err := legislator.CreateNewConfig()
 	if err != nil {
 		log.Fatal("death has found me")
 	}
