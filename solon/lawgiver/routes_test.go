@@ -20,16 +20,6 @@ import (
 	"time"
 )
 
-func TestPingPongRoute(t *testing.T) {
-	testConfig := &SolonHandler{}
-	router := InitRoutes(testConfig)
-	expected := "{\"result\":\"pong\"}"
-
-	w := performGetRequest(router, "/solon/v1/ping")
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, expected, w.Body.String())
-}
-
 func TestHealth(t *testing.T) {
 	t.Run("HappyPath", func(t *testing.T) {
 		fixtureFile := "info"

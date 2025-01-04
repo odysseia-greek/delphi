@@ -237,7 +237,7 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 		},
 	}
 
-	if p.Config.L7Mode {
+	if p.L7Mode {
 		var indices []string
 
 		if strings.Contains(elasticAccess, ";") {
@@ -358,7 +358,7 @@ func (p *PeriklesHandler) findServicePortsForDeployment(deployName, namespace st
 	ctx := context.Background()
 
 	// Get the Deployment
-	deployment, err := p.Config.Kube.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
+	deployment, err := p.Kube.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deployment %s: %w", deployName, err)
 	}
@@ -370,7 +370,7 @@ func (p *PeriklesHandler) findServicePortsForDeployment(deployName, namespace st
 	}
 
 	// List Services in the namespace
-	services, err := p.Config.Kube.CoreV1().Services(deployment.Namespace).List(ctx, metav1.ListOptions{})
+	services, err := p.Kube.CoreV1().Services(deployment.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list services in namespace %s: %w", deployment.Namespace, err)
 	}
