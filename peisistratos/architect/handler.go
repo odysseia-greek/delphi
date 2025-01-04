@@ -32,7 +32,6 @@ type PeisistratosHandler struct {
 
 const (
 	defaultAdminPolicyName     = "solon"
-	defaultUserPolicyName      = "ptolemaios"
 	gcp                        = "gcp"
 	defaultConfigMapAnnotation = "unsealprovider.peisistratos"
 )
@@ -142,11 +141,6 @@ func (p *PeisistratosHandler) InitVault() error {
 
 		if strings.Contains(file.Name(), defaultAdminPolicyName) {
 			err = p.Vault.WritePolicy(defaultAdminPolicyName, content)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = p.Vault.WritePolicy(defaultUserPolicyName, content)
 			if err != nil {
 				return err
 			}

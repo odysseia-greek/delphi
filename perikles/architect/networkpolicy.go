@@ -86,7 +86,7 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 	}
 
 	// Get the network policy first and delete if it exists
-	_, err = p.Config.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Get(
+	_, err = p.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Get(
 		context.Background(),
 		policy.Name,
 		metav1.GetOptions{},
@@ -95,7 +95,7 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 	if err == nil {
 		logging.Debug(fmt.Sprintf("CiliumNetworkPolicy %s found", policy.Name))
 
-		err = p.Config.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Delete(
+		err = p.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Delete(
 			context.Background(),
 			policy.Name,
 			metav1.DeleteOptions{},
@@ -160,7 +160,7 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 	unstructuredPolicy := &unstructured.Unstructured{Object: unstructuredObj}
 
 	// Apply the policy in the specified namespace
-	_, err = p.Config.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Create(
+	_, err = p.Kube.Dynamic().Resource(gvr).Namespace(policy.Namespace).Create(
 		context.Background(),
 		unstructuredPolicy,
 		metav1.CreateOptions{},

@@ -16,7 +16,6 @@ import (
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	pb "github.com/odysseia-greek/attike/aristophanes/proto"
 	delphi "github.com/odysseia-greek/delphi/solon/models"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strings"
 	"time"
@@ -35,42 +34,7 @@ type SolonHandler struct {
 	Cancel           context.CancelFunc
 }
 
-// PingPong pongs the ping
-func (s *SolonHandler) PingPong(w http.ResponseWriter, req *http.Request) {
-	// swagger:route GET /ping status ping
-	//
-	// Checks if api is reachable
-	//
-	//	Consumes:
-	//	- application/json
-	//
-	//	Produces:
-	//	- application/json
-	//
-	//	Schemes: http, https
-	//
-	//	Responses:
-	//	  200: ResultModel
-	pingPong := models.ResultModel{Result: "pong"}
-	middleware.ResponseWithJson(w, pingPong)
-}
-
 func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
-	// swagger:route GET /health status health
-	//
-	// Checks if api is healthy
-	//
-	//	Consumes:
-	//	- application/json
-	//
-	//	Produces:
-	//	- application/json
-	//
-	//	Schemes: http, https
-	//
-	//	Responses:
-	//	  200: Health
-	//	  502: Health
 	requestId := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestId)
 
@@ -92,26 +56,50 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Request) {
-	// swagger:route GET /token service createToken
-	//
-	// Creates a one time token for vault
-	//
-	//	Consumes:
-	//	- application/json
-	//
-	//	Produces:
-	//	- application/json
-	//
-	//	Schemes: http, https
-	//
-	//	Responses:
-	//	  200: TokenResponse
-	//    400: ValidationError
-	//	  405: MethodError
+	pod, err := s.verifyRequestOriginIP(req.RemoteAddr)
+	if err != nil {
+		logging.Error(err.Error())
+		e := models.ValidationError{
+			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
+			Messages: []models.ValidationMessages{
+				{
+					Field:   "verifying requestIP with a pod",
+					Message: err.Error(),
+				},
+			},
+		}
+		middleware.ResponseWithJson(w, e)
+		return
+	}
 
-	//validate podname as registered?
-	policy := []string{"ptolemaios"}
-	token, err := s.Vault.CreateOneTimeToken(policy)
+	// Define the policy name and Vault path
+	policyName := fmt.Sprintf("policy-%s", pod.Name)
+	podVaultPath := fmt.Sprintf("configs/data/%s", pod.Name)
+
+	// Define the policy rules
+	policyRules := fmt.Sprintf(`
+path "%s" {
+  capabilities = ["read", "list"]
+}
+`, podVaultPath)
+
+	err = s.Vault.WritePolicy(policyName, []byte(policyRules))
+	if err != nil {
+		logging.Error(err.Error())
+		e := models.ValidationError{
+			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
+			Messages: []models.ValidationMessages{
+				{
+					Field:   "creating policy",
+					Message: err.Error(),
+				},
+			},
+		}
+		middleware.ResponseWithJson(w, e)
+		return
+	}
+
+	token, err := s.Vault.CreateOneTimeToken([]string{policyName})
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
@@ -134,30 +122,6 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	middleware.ResponseWithCustomCode(w, http.StatusOK, tokenModel)
 }
 
-// swagger:parameters registerService
-type registerServiceParameters struct {
-	// in:body
-	Application delphi.SolonCreationRequest
-}
-
-// RegisterService registers and creates a new user in Elastic which will be stored in vault.
-//
-// swagger:route POST /register service registerService
-//
-// Registers and creates a new user in Elastic which will be stored in vault.
-//
-// Consumes:
-// - application/json
-//
-// Produces:
-// - application/json
-// Schemes: http, https
-//
-// Responses:
-//
-//	200: SolonResponse
-//	400: ValidationError
-//	405: MethodError
 func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request) {
 	requestId := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestId)
@@ -168,18 +132,56 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	password, err := generator.RandomPassword(18)
+	pod, err := s.verifyRequestOriginIP(req.RemoteAddr)
 	if err != nil {
-		s.handleValidationError(w, "passwordgenerator", requestId, err)
+		logging.Error(err.Error())
+		e := models.ValidationError{
+			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
+			Messages: []models.ValidationMessages{
+				{
+					Field:   "verifying requestIP with a pod",
+					Message: err.Error(),
+				},
+			},
+		}
+		middleware.ResponseWithJson(w, e)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
+	if pod.Name != creationRequest.PodName {
+		// this error should go to slack or somewhere to see illegal actions
+		e := models.ValidationError{
+			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
+			Messages: []models.ValidationMessages{
+				{
+					Field:   "creationRequest.Podname",
+					Message: fmt.Sprintf("illegal action detected: %s requested but podname is %s", creationRequest.PodName, pod.Name),
+				},
+			},
+		}
+		middleware.ResponseWithJson(w, e)
+		return
+	}
 
-	pod, err := s.Kube.CoreV1().Pods(s.Namespace).Get(ctx, creationRequest.PodName, metav1.GetOptions{})
-	if err != nil || !s.isValidAnnotations(pod.Annotations, &creationRequest) {
-		s.handleValidationError(w, "annotations", requestId, fmt.Errorf("annotations requested and found on pod %s did not match", creationRequest.PodName))
+	validAnnotation := s.areValidAnnotations(pod.Annotations, &creationRequest)
+	if !validAnnotation {
+		// this error should go to slack or somewhere to see illegal actions
+		e := models.ValidationError{
+			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
+			Messages: []models.ValidationMessages{
+				{
+					Field:   "annotations",
+					Message: fmt.Sprintf("illegal action detected: %s requested invalid annotations", pod.Name),
+				},
+			},
+		}
+		middleware.ResponseWithJson(w, e)
+		return
+	}
+
+	password, err := generator.RandomPassword(18)
+	if err != nil {
+		s.handleValidationError(w, "passwordgenerator", requestId, err)
 		return
 	}
 
@@ -199,7 +201,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	logging.Debug(fmt.Sprintf("created new user: %s from pod: %s", creationRequest.Username, creationRequest.PodName))
+	logging.Debug(fmt.Sprintf("created new user: %s from pod: %s", creationRequest.Username, pod.Name))
 	createRequest := diogenes.CreateSecretRequest{
 		Data: diogenes.ElasticConfigVault{
 			Username:    creationRequest.Username,
@@ -210,8 +212,8 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 
 	payload, _ := createRequest.Marshal()
 
-	logging.Debug(fmt.Sprintf("created secret: %s", creationRequest.PodName))
-	secretCreated, err := s.Vault.CreateNewSecret(creationRequest.PodName, payload)
+	logging.Debug(fmt.Sprintf("created secret: %s", pod.Name))
+	secretCreated, err := s.Vault.CreateNewSecret(pod.Name, payload)
 	if err != nil {
 		s.handleValidationError(w, "createSecret", requestId, err)
 		return
@@ -234,7 +236,7 @@ func (s *SolonHandler) handleValidationError(w http.ResponseWriter, field, reque
 	middleware.ResponseWithJson(w, e)
 }
 
-func (s *SolonHandler) isValidAnnotations(annotations map[string]string, req *delphi.SolonCreationRequest) bool {
+func (s *SolonHandler) areValidAnnotations(annotations map[string]string, req *delphi.SolonCreationRequest) bool {
 	var validAccess bool
 	var validRole bool
 

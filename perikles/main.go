@@ -39,17 +39,13 @@ func main() {
 	logging.System("\"he would yet do full well to wait for that wisest of all counsellors, Time.\"")
 	logging.System(strings.Repeat("~", 37))
 
-	env := os.Getenv("ENV")
-
-	periklesConfig, err := architect.CreateNewConfig(env)
+	handler, err := architect.CreateNewConfig()
 	if err != nil {
 		log.Fatal("death has found me")
 	}
 
-	handler := architect.PeriklesHandler{Config: periklesConfig}
-
 	logging.Debug("init for CA started...")
-	err = handler.Config.Cert.InitCa()
+	err = handler.Cert.InitCa()
 	if err != nil {
 		log.Fatal("death has found me")
 	}
@@ -57,7 +53,7 @@ func main() {
 	logging.Debug("CA created")
 
 	logging.Debug("creating CRD...")
-	created, err := handler.Config.Mapping.CreateInCluster()
+	created, err := handler.Mapping.CreateInCluster()
 	if err != nil {
 		logging.Error(err.Error())
 	}
@@ -68,14 +64,14 @@ func main() {
 		logging.Debug("CRD not created, it might already exist")
 	}
 
-	_, err = handler.Config.Mapping.Get(periklesConfig.CrdName)
+	_, err = handler.Mapping.Get(handler.CrdName)
 	if err != nil {
-		mapping, err := handler.Config.Mapping.Parse(nil, periklesConfig.CrdName, periklesConfig.Namespace)
+		mapping, err := handler.Mapping.Parse(nil, handler.CrdName, handler.Namespace)
 		if err != nil {
 			logging.Error(err.Error())
 		}
 
-		createdCrd, err := handler.Config.Mapping.Create(mapping)
+		createdCrd, err := handler.Mapping.Create(mapping)
 		if err != nil {
 			logging.Error(err.Error())
 		} else {
@@ -84,7 +80,7 @@ func main() {
 	}
 
 	logging.Debug("init routes")
-	srv := architect.InitRoutes(*periklesConfig)
+	srv := architect.InitRoutes(handler)
 
 	cfg := &tls.Config{
 		MinVersion:       tls.VersionTLS12,
@@ -107,8 +103,8 @@ func main() {
 	}
 
 	logging.System("loading cert files from mount")
-	certFile := filepath.Join(periklesConfig.TLSFiles, crtFileName)
-	keyFile := filepath.Join(periklesConfig.TLSFiles, keyFileName)
+	certFile := filepath.Join(handler.TLSFiles, crtFileName)
+	keyFile := filepath.Join(handler.TLSFiles, keyFileName)
 
 	logging.System(fmt.Sprintf("starting server on address: %s", port))
 	err = httpsServer.ListenAndServeTLS(certFile, keyFile)

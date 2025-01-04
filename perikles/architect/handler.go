@@ -2,24 +2,39 @@ package architect
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
+	"github.com/odysseia-greek/agora/plato/certificates"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/agora/plato/models"
+	"github.com/odysseia-greek/agora/thales"
+	"github.com/odysseia-greek/agora/thales/odysseia"
 	"io"
 	"k8s.io/api/admission/v1beta1"
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
-	"strings"
 	"sync"
+	"time"
 )
 
 type PeriklesHandler struct {
-	Config         *Config
-	Mutex          sync.Mutex
-	PendingUpdates map[string][]MappingUpdate
+	Mutex              sync.Mutex
+	PendingUpdateTimer time.Duration
+	TLSCheckTimer      time.Duration
+	ReconcileTimer     time.Duration
+	PendingUpdates     map[string][]MappingUpdate
+	Kube               *thales.KubeClient
+	Mapping            odysseia.ServiceMapping
+	Cert               certificates.CertClient
+	CiliumClient       *versioned.Clientset
+	Namespace          string
+	CrdName            string
+	TLSFiles           string
+	L7Mode             bool
 }
 
 // pingPong pongs the ping
@@ -28,7 +43,6 @@ func (p *PeriklesHandler) pingPong(w http.ResponseWriter, req *http.Request) {
 	middleware.ResponseWithJson(w, pingPong)
 }
 
-// validate that new deployments have the correct secret attached to them
 func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 	requestId := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestId)
@@ -61,7 +75,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 			Messages: []models.ValidationMessages{
 				{
 					Field:   "body",
-					Message: "incorrect body was send: cannot unmarshal request into AdmissionReview",
+					Message: "incorrect body was sent: cannot unmarshal request into AdmissionReview",
 				},
 			},
 		}
@@ -84,8 +98,11 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 	}
 
 	kubeType := arRequest.Request.RequestKind.Kind
-
 	raw := arRequest.Request.Object.Raw
+
+	// buffered channel for goroutine error reporting
+	errCh := make(chan error, 2)
+	wg := &sync.WaitGroup{}
 
 	switch kubeType {
 	case "Deployment":
@@ -96,7 +113,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 				Messages: []models.ValidationMessages{
 					{
 						Field:   "body",
-						Message: "incorrect body was send: cannot unmarshal request into Deployment",
+						Message: "incorrect body was sent: cannot unmarshal request into Deployment",
 					},
 				},
 			}
@@ -104,10 +121,20 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		wg.Add(2)
 		go func() {
-			err := p.checkForAnnotations(&deploy, nil)
+			defer wg.Done()
+			err := p.checkForAnnotations(&deploy)
 			if err != nil {
-				logging.Error(err.Error())
+				errCh <- fmt.Errorf("checkForAnnotations error: %w", err)
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+			err := p.checkForElasticAnnotations(&deploy, nil)
+			if err != nil {
+				errCh <- fmt.Errorf("checkForElasticAnnotations error: %w", err)
 			}
 		}()
 	case "Job":
@@ -118,7 +145,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 				Messages: []models.ValidationMessages{
 					{
 						Field:   "body",
-						Message: "incorrect body was send: cannot unmarshal request into Job",
+						Message: "incorrect body was sent: cannot unmarshal request into Job",
 					},
 				},
 			}
@@ -126,16 +153,17 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		wg.Add(1)
 		go func() {
-			if !strings.Contains(job.Name, "mirrord") {
-				err := p.checkForAnnotations(nil, &job)
-				if err != nil {
-					logging.Error(err.Error())
-				}
+			defer wg.Done()
+			err := p.checkForElasticAnnotations(nil, &job)
+			if err != nil {
+				errCh <- fmt.Errorf("checkForElasticAnnotations error: %w", err)
 			}
 		}()
 	}
 
+	// Send the AdmissionReview response immediately
 	review := v1beta1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       arRequest.Kind,
@@ -148,4 +176,15 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 	}
 
 	middleware.ResponseWithCustomCode(w, 200, review)
+
+	// Wait for background processing to complete
+	go func() {
+		wg.Wait()
+		close(errCh)
+
+		// Log errors after completion
+		for err := range errCh {
+			logging.Error(fmt.Sprintf("Request ID: %s, Error: %v", requestId, err))
+		}
+	}()
 }

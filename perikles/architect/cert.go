@@ -13,7 +13,7 @@ import (
 // createCert generates TLS certificates and saves them as a Kubernetes Secret
 func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretName string) error {
 	tlsName := "tls"
-	crt, key, err := p.Config.Cert.GenerateKeyAndCertSet(hosts, validityDays)
+	crt, key, err := p.Cert.GenerateKeyAndCertSet(hosts, validityDays)
 	if err != nil {
 		return err
 	}
@@ -21,13 +21,13 @@ func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretNam
 	certData := make(map[string][]byte)
 	certData[fmt.Sprintf("%s.key", tlsName)] = key
 	certData[fmt.Sprintf("%s.crt", tlsName)] = crt
-	certData[fmt.Sprintf("%s.pem", tlsName)] = p.Config.Cert.PemEncodedCa()
+	certData[fmt.Sprintf("%s.pem", tlsName)] = p.Cert.PemEncodedCa()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
 	secretExists := true
-	_, err = p.Config.Kube.CoreV1().Secrets(p.Config.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+	_, err = p.Kube.CoreV1().Secrets(p.Namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			secretExists = false
@@ -56,7 +56,7 @@ func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretNam
 			Type:      corev1.SecretTypeTLS,
 		}
 
-		secret, err := p.Config.Kube.CoreV1().Secrets(p.Config.Namespace).Update(context.Background(), &scr, metav1.UpdateOptions{})
+		secret, err := p.Kube.CoreV1().Secrets(p.Namespace).Update(context.Background(), &scr, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func (p *PeriklesHandler) createCert(hosts []string, validityDays int, secretNam
 		Data:      certData,
 		Type:      corev1.SecretTypeTLS,
 	}
-	secret, err := p.Config.Kube.CoreV1().Secrets(p.Config.Namespace).Create(context.Background(), scr, metav1.CreateOptions{})
+	secret, err := p.Kube.CoreV1().Secrets(p.Namespace).Create(context.Background(), scr, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

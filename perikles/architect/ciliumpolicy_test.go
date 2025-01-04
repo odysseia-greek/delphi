@@ -15,10 +15,8 @@ import (
 
 func TestCheckForElasticAnnotations(t *testing.T) {
 	handler := PeriklesHandler{
-		Config: &Config{
-			Kube:   kubernetes.NewFakeKubeClient(),
-			L7Mode: false,
-		},
+		Kube:   kubernetes.NewFakeKubeClient(),
+		L7Mode: false,
 	}
 
 	t.Run("ValidDeploymentAnnotations", func(t *testing.T) {
@@ -88,9 +86,7 @@ func TestCheckForElasticAnnotations(t *testing.T) {
 
 func TestGenerateCiliumNetworkPolicyInL3L4Mode(t *testing.T) {
 	handler := PeriklesHandler{
-		Config: &Config{
-			L7Mode: false, // Ensure L7Mode is off
-		},
+		L7Mode: false, // Ensure L7Mode is off
 	}
 
 	t.Run("GeneratePolicyForDeploymentWithoutL7Rules", func(t *testing.T) {
@@ -135,9 +131,7 @@ func TestGenerateCiliumNetworkPolicyInL3L4Mode(t *testing.T) {
 
 func TestGenerateCiliumNetworkPolicyInL7Mode(t *testing.T) {
 	handler := PeriklesHandler{
-		Config: &Config{
-			L7Mode: true, // Enable L7 mode
-		},
+		L7Mode: true, // Enable L7 mode
 	}
 
 	t.Run("GeneratePolicyWithL7RulesForDeployment", func(t *testing.T) {
@@ -212,9 +206,7 @@ func TestGenerateCiliumNetworkPolicyInL7Mode(t *testing.T) {
 
 func TestL7RulesGeneration(t *testing.T) {
 	handler := PeriklesHandler{
-		Config: &Config{
-			L7Mode: true, // Enable L7 mode for these tests
-		},
+		L7Mode: true, // Enable L7 mode for these tests
 	}
 
 	t.Run("GetHTTPRulesForRoles", func(t *testing.T) {
@@ -303,10 +295,8 @@ func TestL7RulesGeneration(t *testing.T) {
 // best to create an integration test here at some point using KWOK
 func TestGenerateVaultNetworkPolicy(t *testing.T) {
 	handler := PeriklesHandler{
-		Config: &Config{
-			Kube:   kubernetes.NewFakeKubeClient(),
-			L7Mode: false,
-		},
+		Kube:   kubernetes.NewFakeKubeClient(),
+		L7Mode: false,
 	}
 
 	t.Run("GenerateValidVaultPolicy", func(t *testing.T) {
@@ -318,10 +308,8 @@ func TestGenerateVaultNetworkPolicy(t *testing.T) {
 // best to create an integration test here at some point using KWOK
 func TestGenerateServiceToServiceNetworkPolicy(t *testing.T) {
 	handler := PeriklesHandler{
-		Config: &Config{
-			Kube:   kubernetes.NewFakeKubeClient(),
-			L7Mode: false,
-		},
+		Kube:   kubernetes.NewFakeKubeClient(),
+		L7Mode: false,
 	}
 
 	t.Run("GeneratePolicyWithSingleHost", func(t *testing.T) {

@@ -31,13 +31,12 @@ func TestCertCreation(t *testing.T) {
 	t.Run("SecretNewlyCreated", func(t *testing.T) {
 		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
-		testConfig := Config{
+		handler := PeriklesHandler{
 			Kube:      fakeKube,
 			Cert:      cert,
 			Namespace: ns,
 		}
 
-		handler := PeriklesHandler{Config: &testConfig}
 		err = handler.createCert(hosts, 1, secretName)
 		assert.Nil(t, err)
 	})
@@ -45,7 +44,7 @@ func TestCertCreation(t *testing.T) {
 	t.Run("SecretAlreadyExists", func(t *testing.T) {
 		fakeKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
-		testConfig := Config{
+		handler := PeriklesHandler{
 			Kube:      fakeKube,
 			Cert:      cert,
 			Namespace: ns,
@@ -70,7 +69,6 @@ func TestCertCreation(t *testing.T) {
 		}
 		fakeKube.CoreV1().Secrets(ns).Create(context.Background(), secret, metav1.CreateOptions{})
 
-		handler := PeriklesHandler{Config: &testConfig}
 		err = handler.createCert(hosts, 1, secretName)
 		assert.Nil(t, err)
 	})

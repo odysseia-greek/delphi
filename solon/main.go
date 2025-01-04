@@ -36,7 +36,8 @@ func main() {
 	}
 
 	// Setup server
-	srv := lawgiver.InitRoutes(solonHandler)
+	ticker := time.Minute * 10
+	srv := lawgiver.InitRoutes(solonHandler, ticker)
 	logging.System(fmt.Sprintf("TLS enabled: %v", solonHandler.TLSEnabled))
 	logging.System(fmt.Sprintf("Running on port: %s", port))
 
