@@ -13,3 +13,12 @@ Feature: Perikles
     Examples:
     | role   | access    | hostname    | client |
     | api    | testindex | ktesias-bdd | solon  |
+
+  @wip
+  Scenario: a deployment with the correct annotations
+    Given solon returns a healthy response
+    And a request is made to register the running pod with correct role and access annotations
+    And a request is made for a one time token
+    And an elastic client is created with the vault data
+    When a call is made to the correct index with the correct action
+    Then a 200 should be returned

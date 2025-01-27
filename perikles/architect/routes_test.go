@@ -49,7 +49,6 @@ func TestValidityFlow(t *testing.T) {
 
 	t.Run("EmptyBody", func(t *testing.T) {
 		fakeKube := kubernetes.NewFakeKubeClient()
-		assert.Nil(t, err)
 		testConfig := &PeriklesHandler{
 			Kube:               fakeKube,
 			Cert:               cert,

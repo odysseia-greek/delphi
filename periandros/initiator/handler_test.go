@@ -3,7 +3,6 @@ package initiator
 import (
 	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/agora/plato/service"
-	configs "github.com/odysseia-greek/delphi/periandros/config"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -41,7 +40,6 @@ func TestSolonHealthy(t *testing.T) {
 	timeOut := 20 * time.Millisecond
 
 	t.Run("SolonHealthy", func(t *testing.T) {
-
 		codes := []int{
 			200,
 		}
@@ -54,14 +52,14 @@ func TestSolonHealthy(t *testing.T) {
 		}
 
 		testClient, err := service.NewFakeClient(config, codes, responses)
-
-		testConfig := configs.Config{
+		testHandler := PeriandrosHandler{
+			Duration:             duration,
+			Timeout:              timeOut,
 			Namespace:            ns,
 			HttpClients:          testClient,
 			SolonCreationRequest: requestBody,
 		}
 
-		testHandler := PeriandrosHandler{Config: &testConfig, Duration: duration, Timeout: timeOut}
 		healthy := testHandler.CheckSolonHealth()
 		assert.True(t, healthy)
 	})
@@ -80,13 +78,13 @@ func TestSolonHealthy(t *testing.T) {
 
 		testClient, err := service.NewFakeClient(config, codes, responses)
 
-		testConfig := configs.Config{
+		testHandler := PeriandrosHandler{
+			Duration:             duration,
+			Timeout:              timeOut,
 			Namespace:            ns,
 			HttpClients:          testClient,
 			SolonCreationRequest: requestBody,
 		}
-
-		testHandler := PeriandrosHandler{Config: &testConfig, Duration: duration, Timeout: timeOut}
 		healthy := testHandler.CheckSolonHealth()
 		assert.False(t, healthy)
 	})
@@ -116,13 +114,14 @@ func TestSolonHealthy(t *testing.T) {
 
 		testClient, err := service.NewFakeClient(config, codes, responses)
 
-		testConfig := configs.Config{
+		testHandler := PeriandrosHandler{
+			Duration:             duration,
+			Timeout:              timeOut,
 			Namespace:            ns,
 			HttpClients:          testClient,
 			SolonCreationRequest: requestBody,
 		}
 
-		testHandler := PeriandrosHandler{Config: &testConfig, Duration: duration, Timeout: timeOut}
 		healthy := testHandler.CheckSolonHealth()
 		assert.True(t, healthy)
 	})
@@ -178,14 +177,13 @@ func TestCreatUser(t *testing.T) {
 		}
 
 		testClient, err := service.NewFakeClient(config, codes, responses)
-
-		testConfig := configs.Config{
+		testHandler := PeriandrosHandler{
+			Duration:             duration,
+			Timeout:              timeOut,
 			Namespace:            ns,
 			HttpClients:          testClient,
 			SolonCreationRequest: requestBody,
 		}
-
-		testHandler := PeriandrosHandler{Config: &testConfig, Duration: duration, Timeout: timeOut}
 		created, err := testHandler.CreateUser()
 		assert.Nil(t, err)
 		assert.True(t, created)
@@ -208,14 +206,13 @@ func TestCreatUser(t *testing.T) {
 		}
 
 		testClient, err := service.NewFakeClient(config, codes, responses)
-
-		testConfig := configs.Config{
+		testHandler := PeriandrosHandler{
+			Duration:             duration,
+			Timeout:              timeOut,
 			Namespace:            ns,
 			HttpClients:          testClient,
 			SolonCreationRequest: requestBody,
 		}
-
-		testHandler := PeriandrosHandler{Config: &testConfig, Duration: duration, Timeout: timeOut}
 		created, err := testHandler.CreateUser()
 		assert.NotNil(t, err)
 		assert.False(t, created)
@@ -241,14 +238,13 @@ func TestCreatUser(t *testing.T) {
 		}
 
 		testClient, err := service.NewFakeClient(config, codes, responses)
-
-		testConfig := configs.Config{
+		testHandler := PeriandrosHandler{
+			Duration:             duration,
+			Timeout:              timeOut,
 			Namespace:            ns,
 			HttpClients:          testClient,
 			SolonCreationRequest: requestBody,
 		}
-
-		testHandler := PeriandrosHandler{Config: &testConfig, Duration: duration, Timeout: timeOut}
 		created, err := testHandler.CreateUser()
 		assert.NotNil(t, err)
 		assert.False(t, created)

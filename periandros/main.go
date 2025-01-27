@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/periandros/config"
 	"github.com/odysseia-greek/delphi/periandros/initiator"
 	"log"
 	"os"
@@ -21,16 +20,13 @@ func main() {
 
 	logging.Debug("creating config")
 
-	env := os.Getenv("ENV")
+	duration := 1 * time.Second
+	timeOut := 5 * time.Minute
 
-	periandrosConfig, err := config.CreateNewConfig(env)
+	handler, err := initiator.CreateNewConfig(duration, timeOut)
 	if err != nil {
 		log.Fatal("death has found me")
 	}
-
-	duration := 1 * time.Second
-	timeOut := 5 * time.Minute
-	handler := initiator.PeriandrosHandler{Config: periandrosConfig, Duration: duration, Timeout: timeOut}
 
 	created, err := handler.CreateUser()
 	if err != nil {
@@ -38,5 +34,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	logging.Info(fmt.Sprintf("created user: %s %v", handler.Config.SolonCreationRequest.Username, created))
+	logging.Info(fmt.Sprintf("created user: %s %v", handler.SolonCreationRequest.Username, created))
 }

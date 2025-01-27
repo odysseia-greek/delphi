@@ -4,7 +4,7 @@ go 1.23
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/odysseia-greek/agora/plato v0.1.48
+	github.com/odysseia-greek/agora/plato v0.1.49
 	github.com/stretchr/testify v1.10.0
 )
 

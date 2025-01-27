@@ -234,7 +234,7 @@ func calculateTimeDifference(valid int, created string) (bool, error) {
 	validity := valid * 24
 	validFrom, err := time.Parse(timeFormat, created)
 	if err != nil {
-		return redeploy, err
+		return false, err
 	}
 
 	inHours := time.Duration(validity) * time.Hour

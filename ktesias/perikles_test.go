@@ -2,7 +2,14 @@ package ktesias
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/cucumber/godog"
+	"github.com/odysseia-greek/agora/aristoteles"
+	"github.com/odysseia-greek/agora/aristoteles/models"
+	"github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/logging"
+	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -174,6 +181,72 @@ func (l *OdysseiaFixture) aDeploymentIsCreatedWithRoleAccessHostAndBeingAClientO
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %v", err)
 	}
+
+	return nil
+}
+
+func (l *OdysseiaFixture) aCallIsMadeToTheCorrectIndexWithTheCorrectAction() error {
+	envAccess := config.SliceFromEnv(config.EnvIndex)[0]
+	elasticClientLocal := l.ctx.Value(ElasticClientContext).(aristoteles.Client)
+
+	query := elasticClientLocal.Builder().MatchAll()
+
+	response, err := elasticClientLocal.Query().Match(envAccess, query)
+	if err != nil {
+		return err
+	}
+
+	logging.Info(response.ScrollId)
+
+	return nil
+}
+
+func (l *OdysseiaFixture) aShouldBeReturned(responseCode int) error {
+	return godog.ErrPending
+}
+
+func (l *OdysseiaFixture) anElasticClientIsCreatedWithTheVaultData() error {
+	var oneTimeToken string
+	if token, ok := l.ctx.Value(SecondTokenContext).(string); ok && token != "" {
+		oneTimeToken = token
+	} else if fallbackToken, ok := l.ctx.Value(TokenContext).(string); ok && fallbackToken != "" {
+		oneTimeToken = fallbackToken
+	} else {
+		return fmt.Errorf("both SecondTokenContext and TokenContext are nil or empty")
+	}
+
+	l.Vault.SetOnetimeToken(oneTimeToken)
+	secret, err := l.Vault.GetSecret(l.PodName)
+	if err != nil {
+		return err
+	}
+
+	var elasticModel pb.ElasticConfigVault
+	for key, value := range secret.Data {
+		if key == "data" {
+			j, _ := json.Marshal(value)
+			err := json.Unmarshal(j, &elasticModel)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	elasticService := aristoteles.ElasticService(true)
+
+	cfg := models.Config{
+		Service:     elasticService,
+		Username:    elasticModel.ElasticUsername,
+		Password:    elasticModel.ElasticPassword,
+		ElasticCERT: elasticModel.ElasticCERT,
+	}
+
+	elastic, err := aristoteles.NewClient(cfg)
+	if err != nil {
+		return err
+	}
+
+	l.ctx = context.WithValue(l.ctx, ElasticClientContext, elastic)
 
 	return nil
 }

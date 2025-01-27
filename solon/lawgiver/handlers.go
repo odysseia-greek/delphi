@@ -72,6 +72,20 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	if pod == nil {
+		e := models.ValidationError{
+			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
+			Messages: []models.ValidationMessages{
+				{
+					Field:   "listPods",
+					Message: "no pods could be found",
+				},
+			},
+		}
+		middleware.ResponseWithJson(w, e)
+		return
+	}
+
 	// Define the policy name and Vault path
 	policyName := fmt.Sprintf("policy-%s", pod.Name)
 	podVaultPath := fmt.Sprintf("configs/data/%s", pod.Name)

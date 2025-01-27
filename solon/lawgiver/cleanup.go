@@ -59,16 +59,22 @@ func (s *SolonHandler) cleanup() error {
 		return fmt.Errorf("failed to get Vault secrets: %w", err)
 	}
 
+	vaultPolicies, err := s.Vault.ListPolicies()
+	if err != nil {
+		return fmt.Errorf("failed to get Vault policies: %w", err)
+	}
+
 	// Identify and delete orphaned users/secrets
-	if err := s.deleteOrphans(pods, elasticUsers, vaultSecrets); err != nil {
+	if err := s.deleteOrphans(pods, elasticUsers, vaultSecrets, vaultPolicies); err != nil {
 		return fmt.Errorf("failed to delete orphans: %w", err)
 	}
 
 	return nil
 }
 
-func (s *SolonHandler) deleteOrphans(currentPods *v1.PodList, elasticUsers []string, vaultSecrets []string) error {
+func (s *SolonHandler) deleteOrphans(currentPods *v1.PodList, elasticUsers []string, vaultSecrets, vaultPolicies []string) error {
 	// Identify orphaned Elastic users
+	numberOfCleanedResource := 0
 	for _, user := range elasticUsers {
 		if user == config.DefaultTracingName || user == config.DefaultMetricsName {
 			continue
@@ -77,7 +83,7 @@ func (s *SolonHandler) deleteOrphans(currentPods *v1.PodList, elasticUsers []str
 		for _, pod := range currentPods.Items {
 			splitPodName := strings.Split(pod.Name, "-")
 			var username string
-			//this logic is from periandros because elastic does not accept - in a username
+			//this logic is from periandros because elastic does not accept hyphem in a username
 			if len(splitPodName) > 1 {
 				username = splitPodName[0] + splitPodName[len(splitPodName)-1]
 			} else {
@@ -86,6 +92,7 @@ func (s *SolonHandler) deleteOrphans(currentPods *v1.PodList, elasticUsers []str
 
 			if user == username {
 				userFound = true
+				break
 			}
 		}
 
@@ -96,6 +103,7 @@ func (s *SolonHandler) deleteOrphans(currentPods *v1.PodList, elasticUsers []str
 				continue
 			}
 			logging.System(fmt.Sprintf("deleted orphan elatisUser: %s", user))
+			numberOfCleanedResource++
 		}
 	}
 
@@ -105,6 +113,7 @@ func (s *SolonHandler) deleteOrphans(currentPods *v1.PodList, elasticUsers []str
 		for _, pod := range currentPods.Items {
 			if secret == pod.Name {
 				secretFound = true
+				break
 			}
 		}
 
@@ -114,9 +123,47 @@ func (s *SolonHandler) deleteOrphans(currentPods *v1.PodList, elasticUsers []str
 				logging.Error(fmt.Sprintf("failed to delete orphaned secret: %s, %s", secret, err.Error()))
 				continue
 			}
+
+			err = s.Vault.RemoveSecret(secret)
+			if err != nil {
+				logging.Error(fmt.Sprintf("failed to remove orphaned secret: %s, %s", secret, err.Error()))
+				continue
+			}
+
 			logging.System(fmt.Sprintf("deleted orphan secret: %s", secret))
+			numberOfCleanedResource++
 		}
 	}
+
+	protectedPolicies := map[string]bool{
+		"default": true,
+		"root":    true,
+		"solon":   true,
+	}
+	for _, policy := range vaultPolicies {
+		if protectedPolicies[policy] {
+			continue
+		}
+		policyFound := false
+		for _, pod := range currentPods.Items {
+			if policy == fmt.Sprintf("policy-%s", pod.Name) {
+				policyFound = true
+				break
+			}
+		}
+
+		if !policyFound {
+			deletedPolicy, err := s.Vault.DeletePolicy(policy)
+			if err != nil || deletedPolicy != nil {
+				logging.Error(fmt.Sprintf("failed to delete orphaned policy: %s, %s", policy, err.Error()))
+				continue
+			}
+			logging.System(fmt.Sprintf("deleted orphan policy: %s", policy))
+			numberOfCleanedResource++
+		}
+	}
+
+	logging.System(fmt.Sprintf("finished cleanup service and cleaned up %d resources", numberOfCleanedResource))
 
 	return nil
 }

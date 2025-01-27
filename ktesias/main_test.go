@@ -84,15 +84,23 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the created resource "([^"]*)" is checked after a wait$`, odysseia.theCreatedResourceIsCheckedAfterAWait)
 	ctx.Step(`^a CiliumNetWorkPolicy should exist for access from the deployment "([^"]*)" to the host "([^"]*)"$`, odysseia.aCiliumNetWorkPolicyShouldExistForAccessFromTheDeploymentToTheHost)
 	ctx.Step(`^a deployment is created with role "([^"]*)", access "([^"]*)", host "([^"]*)" and being a client of "([^"]*)"$`, odysseia.aDeploymentIsCreatedWithRoleAccessHostAndBeingAClientOf)
+	ctx.Step(`^a call is made to the correct index with the correct action$`, odysseia.aCallIsMadeToTheCorrectIndexWithTheCorrectAction)
+	ctx.Step(`^a (\d+) should be returned$`, odysseia.aShouldBeReturned)
+	ctx.Step(`^an elastic client is created with the vault data$`, odysseia.anElasticClientIsCreatedWithTheVaultData)
 
 	// solon
 	ctx.Step(`^solon returns a healthy response$`, odysseia.solonReturnsAHealthyResponse)
 	ctx.Step(`^a one time token is returned$`, odysseia.aOneTimeTokenIsReturned)
-	ctx.Step(`^a request is made for a one time token without annotations$`, odysseia.aRequestIsMadeForAOneTimeTokenWithoutAnnotations)
 	ctx.Step(`^a request is made to register the running pod with incorrect role and access annotations$`, odysseia.aRequestIsMadeToRegisterTheRunningPodWithIncorrectRoleAndAccessAnnotations)
+	ctx.Step(`^a request is made to register the running pod with correct role and access annotations but a mismatched podname$`, odysseia.aRequestIsMadeToRegisterTheRunningPodWithCorrectRoleAndAccessAnnotationsButAMismatchedPodname)
 	ctx.Step(`^a validation error is returned that the pod annotations do not match the requested role and access$`, odysseia.aValidationErrorIsReturnedThatThePodAnnotationsDoNotMatchTheRequestedRoleAndAccess)
 	ctx.Step(`^a request is made to register the running pod with correct role and access annotations$`, odysseia.aRequestIsMadeToRegisterTheRunningPodWithCorrectRoleAndAccessAnnotations)
 	ctx.Step(`^a successful register should be made$`, odysseia.aSuccessfulRegisterShouldBeMade)
+	ctx.Step(`^a request is made for a second one time token$`, odysseia.aRequestIsMadeForASecondOneTimeToken)
+	ctx.Step(`^a request is made for a one time token$`, odysseia.aRequestIsMadeForAOneTimeToken)
+	ctx.Step(`^the token from the actual podname is valid$`, odysseia.theTokenFromTheActualPodnameIsValid)
+	ctx.Step(`^the token from the mismatched podname is not valid$`, odysseia.theTokenFromTheMismatchedPodnameIsNotValid)
+	ctx.Step(`^the tokens are not usable twice$`, odysseia.theTokensAreNotUsableTwice)
 
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		odysseia.cleanupResources()

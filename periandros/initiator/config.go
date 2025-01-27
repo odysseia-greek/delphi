@@ -1,4 +1,4 @@
-package config
+package initiator
 
 import (
 	"fmt"
@@ -6,13 +6,14 @@ import (
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/models"
 	"strings"
+	"time"
 )
 
 const (
 	TRACING string = "TRACE_CREATION"
 )
 
-func CreateNewConfig(env string) (*Config, error) {
+func CreateNewConfig(duration time.Duration, timeOut time.Duration) (*PeriandrosHandler, error) {
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
 
 	service, err := config.CreateOdysseiaClient()
@@ -23,10 +24,12 @@ func CreateNewConfig(env string) (*Config, error) {
 	tracing := config.BoolFromEnv(TRACING)
 	solonRequest := initCreation(tracing)
 
-	return &Config{
+	return &PeriandrosHandler{
 		Namespace:            ns,
 		HttpClients:          service,
 		SolonCreationRequest: solonRequest,
+		Duration:             duration,
+		Timeout:              timeOut,
 	}, nil
 }
 
