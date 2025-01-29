@@ -25,6 +25,8 @@ const (
 	RegisterContext      string = "registerContext"
 	FakePodName          string = "fakePodName"
 	ElasticClientContext string = "elasticClientContext"
+	ElasticResponseCode  string = "elasticResponseCode"
+	VaultConfig          string = "vaultConfig"
 )
 
 func (l *OdysseiaFixture) solonReturnsAHealthyResponse() error {

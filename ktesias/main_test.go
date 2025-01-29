@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
+	"github.com/google/uuid"
 	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/delphi/ptolemaios/diplomat"
+	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
 	"os"
 	"strings"
 	"testing"
@@ -84,9 +87,6 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the created resource "([^"]*)" is checked after a wait$`, odysseia.theCreatedResourceIsCheckedAfterAWait)
 	ctx.Step(`^a CiliumNetWorkPolicy should exist for access from the deployment "([^"]*)" to the host "([^"]*)"$`, odysseia.aCiliumNetWorkPolicyShouldExistForAccessFromTheDeploymentToTheHost)
 	ctx.Step(`^a deployment is created with role "([^"]*)", access "([^"]*)", host "([^"]*)" and being a client of "([^"]*)"$`, odysseia.aDeploymentIsCreatedWithRoleAccessHostAndBeingAClientOf)
-	ctx.Step(`^a call is made to the correct index with the correct action$`, odysseia.aCallIsMadeToTheCorrectIndexWithTheCorrectAction)
-	ctx.Step(`^a (\d+) should be returned$`, odysseia.aShouldBeReturned)
-	ctx.Step(`^an elastic client is created with the vault data$`, odysseia.anElasticClientIsCreatedWithTheVaultData)
 
 	// solon
 	ctx.Step(`^solon returns a healthy response$`, odysseia.solonReturnsAHealthyResponse)
@@ -102,8 +102,17 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the token from the mismatched podname is not valid$`, odysseia.theTokenFromTheMismatchedPodnameIsNotValid)
 	ctx.Step(`^the tokens are not usable twice$`, odysseia.theTokensAreNotUsableTwice)
 
+	// flow
+	ctx.Step(`^ptolemaios is asked for the current config$`, odysseia.ptolemaiosIsAskedForTheCurrentConfig)
+	ctx.Step(`^a call is made to the correct index with the correct action$`, odysseia.aCallIsMadeToTheCorrectIndexWithTheCorrectAction)
+	ctx.Step(`^an elastic client is created with the one time token that was created$`, odysseia.anElasticClientIsCreatedWithTheOneTimeTokenThatWasCreated)
+	ctx.Step(`^a (\d+) should be returned$`, odysseia.aShouldBeReturned)
+	ctx.Step(`^an elastic client is created with the vault data$`, odysseia.anElasticClientIsCreatedWithTheVaultData)
+	ctx.Step(`^a call is made to an index not part of the annotations$`, odysseia.aCallIsMadeToAnIndexNotPartOfTheAnnotations)
+
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		odysseia.cleanupResources()
+
 		return ctx, nil
 	})
 }
@@ -136,6 +145,20 @@ func TestMain(m *testing.M) {
 		ScenarioInitializer:  InitializeScenario,
 		Options:              &opts,
 	}.Run()
+
+	ambassador := diplomat.NewClientAmbassador()
+
+	healthy := ambassador.WaitForHealthyState()
+	if !healthy {
+		logging.Info("ptolemaios service not ready - restarting seems the only option")
+		os.Exit(1)
+	}
+
+	uuidCode := uuid.New().String()
+	_, err := ambassador.ShutDown(context.Background(), &pb.ShutDownRequest{Code: uuidCode})
+	if err != nil {
+		logging.Error(err.Error())
+	}
 
 	os.Exit(status)
 }
