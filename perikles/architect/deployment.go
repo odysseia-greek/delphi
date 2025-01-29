@@ -23,7 +23,7 @@ func (p *PeriklesHandler) restartDeployment(ns, deploymentName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
-	deployment, err := p.Config.Kube.AppsV1().Deployments(ns).Get(ctx, deploymentName, metav1.GetOptions{})
+	deployment, err := p.Kube.AppsV1().Deployments(ns).Get(ctx, deploymentName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (p *PeriklesHandler) restartDeployment(ns, deploymentName string) error {
 		deployment.Spec.Template.Annotations[key] = value
 	}
 
-	deploy, err := p.Config.Kube.AppsV1().Deployments(ns).Update(ctx, deployment, metav1.UpdateOptions{})
+	deploy, err := p.Kube.AppsV1().Deployments(ns).Update(ctx, deployment, metav1.UpdateOptions{})
 	if deploy != nil {
 		logging.Info(fmt.Sprintf("restarting deployment %s in ns %s", deploy.Name, deploy.Namespace))
 	}

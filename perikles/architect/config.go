@@ -1,10 +1,12 @@
 package architect
 
 import (
-	"github.com/odysseia-greek/agora/plato/certificates"
+	"github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/agora/thales/odysseia"
+	"sync"
+	"time"
 )
 
 const (
@@ -20,18 +22,13 @@ type MappingUpdate struct {
 	IsHostUpdate bool
 }
 
-type Config struct {
-	Kube      *thales.KubeClient
-	Mapping   odysseia.ServiceMapping
-	Cert      certificates.CertClient
-	Namespace string
-	CrdName   string
-	TLSFiles  string
-	L7Mode    bool
-}
-
-func CreateNewConfig(env string) (*Config, error) {
+func CreateNewConfig() (*PeriklesHandler, error) {
 	kube, err := thales.CreateKubeClient(false)
+	if err != nil {
+		return nil, err
+	}
+
+	ciliumClient, err := versioned.NewForConfig(kube.RestConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -55,13 +52,23 @@ func CreateNewConfig(env string) (*Config, error) {
 	tlsFiles := config.StringFromEnv(config.EnvTLSFiles, config.DefaultTLSFileLocation)
 	l7Mode := config.BoolFromEnv("L7_MODE")
 
-	return &Config{
-		Kube:      kube,
-		Cert:      cert,
-		Namespace: ns,
-		CrdName:   crd,
-		TLSFiles:  tlsFiles,
-		Mapping:   mapping,
-		L7Mode:    l7Mode,
+	tlsChecker := 1 * time.Hour
+	updateMappingTimer := 30 * time.Second
+	reconcileTimer := 30 * time.Second
+
+	return &PeriklesHandler{
+		Mutex:              sync.Mutex{},
+		PendingUpdateTimer: updateMappingTimer,
+		TLSCheckTimer:      tlsChecker,
+		ReconcileTimer:     reconcileTimer,
+		PendingUpdates:     map[string][]MappingUpdate{},
+		Kube:               kube,
+		CiliumClient:       ciliumClient,
+		Mapping:            mapping,
+		Cert:               cert,
+		Namespace:          ns,
+		CrdName:            crd,
+		TLSFiles:           tlsFiles,
+		L7Mode:             l7Mode,
 	}, nil
 }

@@ -5,9 +5,9 @@ go 1.23.0
 require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/odysseia-greek/agora/aristoteles v0.1.10
-	github.com/odysseia-greek/agora/diogenes v0.1.8
-	github.com/odysseia-greek/agora/plato v0.1.48
+	github.com/odysseia-greek/agora/aristoteles v0.1.13
+	github.com/odysseia-greek/agora/diogenes v0.1.14
+	github.com/odysseia-greek/agora/plato v0.1.49
 	github.com/odysseia-greek/agora/thales v0.1.11
 	github.com/odysseia-greek/attike/aristophanes v0.6.2
 	github.com/stretchr/testify v1.10.0

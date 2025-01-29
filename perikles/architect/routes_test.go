@@ -14,10 +14,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestPingPongRoute(t *testing.T) {
-	testConfig := Config{}
+	testConfig := &PeriklesHandler{
+		PendingUpdateTimer: 10 * time.Second,
+		TLSCheckTimer:      10 * time.Second,
+		ReconcileTimer:     10 * time.Second,
+	}
 	router := InitRoutes(testConfig)
 	expected := "{\"result\":\"pong\"}"
 
@@ -44,11 +49,13 @@ func TestValidityFlow(t *testing.T) {
 
 	t.Run("EmptyBody", func(t *testing.T) {
 		fakeKube := kubernetes.NewFakeKubeClient()
-		assert.Nil(t, err)
-		testConfig := Config{
-			Kube:      fakeKube,
-			Cert:      cert,
-			Namespace: ns,
+		testConfig := &PeriklesHandler{
+			Kube:               fakeKube,
+			Cert:               cert,
+			Namespace:          ns,
+			PendingUpdateTimer: 10 * time.Second,
+			TLSCheckTimer:      10 * time.Second,
+			ReconcileTimer:     10 * time.Second,
 		}
 
 		expected := "request"
@@ -63,10 +70,13 @@ func TestValidityFlow(t *testing.T) {
 	})
 
 	t.Run("UnparseableBody", func(t *testing.T) {
-		testConfig := Config{
-			Kube:      nil,
-			Cert:      cert,
-			Namespace: ns,
+		testConfig := &PeriklesHandler{
+			Kube:               nil,
+			Cert:               cert,
+			Namespace:          ns,
+			PendingUpdateTimer: 10 * time.Second,
+			TLSCheckTimer:      10 * time.Second,
+			ReconcileTimer:     10 * time.Second,
 		}
 
 		expected := "AdmissionReview"
@@ -87,10 +97,13 @@ func TestValidityFlow(t *testing.T) {
 		assert.Nil(t, err)
 		arNilJson, err := io.ReadAll(file)
 		assert.Nil(t, err)
-		testConfig := Config{
-			Kube:      nil,
-			Cert:      cert,
-			Namespace: ns,
+		testConfig := &PeriklesHandler{
+			Kube:               nil,
+			Cert:               cert,
+			Namespace:          ns,
+			PendingUpdateTimer: 10 * time.Second,
+			TLSCheckTimer:      10 * time.Second,
+			ReconcileTimer:     10 * time.Second,
 		}
 
 		expected := "nil request"
@@ -106,10 +119,13 @@ func TestValidityFlow(t *testing.T) {
 	})
 
 	t.Run("ValidityRequestValid", func(t *testing.T) {
-		testConfig := Config{
-			Kube:      nil,
-			Cert:      cert,
-			Namespace: ns,
+		testConfig := &PeriklesHandler{
+			Kube:               nil,
+			Cert:               cert,
+			Namespace:          ns,
+			PendingUpdateTimer: 10 * time.Second,
+			TLSCheckTimer:      10 * time.Second,
+			ReconcileTimer:     10 * time.Second,
 		}
 
 		router := InitRoutes(testConfig)

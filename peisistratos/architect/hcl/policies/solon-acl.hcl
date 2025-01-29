@@ -19,3 +19,8 @@ path "secret/configs/*"
 path "configs/*" {
   capabilities = ["create", "read", "update", "delete", "list", "sudo"]
 }
+
+# Allow Solon to create policies dynamically
+path "sys/policies/acl/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}

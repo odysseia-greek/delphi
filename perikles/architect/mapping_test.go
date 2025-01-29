@@ -22,14 +22,13 @@ func setupTestEnvironment() (*PeriklesHandler, string, string, string, string, s
 	fakeKube := kubernetes.NewFakeKubeClient()
 	mapping, _ := odysseia.NewFakeServiceMappingImpl()
 
-	testConfig := Config{
+	handler := &PeriklesHandler{
 		Kube:      fakeKube,
 		Cert:      cert,
 		Namespace: ns,
 		CrdName:   "test",
 		Mapping:   mapping,
 	}
-	handler := &PeriklesHandler{Config: &testConfig}
 
 	serviceName := "test"
 	existingServiceName := "fakedService"
@@ -106,8 +105,8 @@ func TestCheckMappingForUpdates(t *testing.T) {
 		err := handler.addHostToMapping(update)
 		assert.Nil(t, err)
 
-		deploy := kubernetes.TestDeploymentObject(serviceName, handler.Config.Namespace)
-		_, err = handler.Config.Kube.AppsV1().Deployments(handler.Config.Namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
+		deploy := kubernetes.TestDeploymentObject(serviceName, handler.Namespace)
+		_, err = handler.Kube.AppsV1().Deployments(handler.Namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
 		assert.Nil(t, err)
 
 		err = handler.checkMappingForUpdates()

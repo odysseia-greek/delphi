@@ -6,14 +6,16 @@ import (
 	uuid2 "github.com/google/uuid"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/models"
-	configs "github.com/odysseia-greek/delphi/periandros/config"
+	"github.com/odysseia-greek/agora/plato/service"
 	"time"
 )
 
 type PeriandrosHandler struct {
-	Config   *configs.Config
-	Duration time.Duration
-	Timeout  time.Duration
+	Duration             time.Duration
+	Timeout              time.Duration
+	Namespace            string
+	HttpClients          service.OdysseiaClient
+	SolonCreationRequest models.SolonCreationRequest
 }
 
 func (p *PeriandrosHandler) CreateUser() (bool, error) {
@@ -24,7 +26,7 @@ func (p *PeriandrosHandler) CreateUser() (bool, error) {
 
 	uuid := uuid2.New().String()
 
-	response, err := p.Config.HttpClients.Solon().Register(p.Config.SolonCreationRequest, uuid)
+	response, err := p.HttpClients.Solon().Register(p.SolonCreationRequest, uuid)
 	if err != nil {
 		return false, err
 	}
@@ -53,7 +55,7 @@ func (p *PeriandrosHandler) CheckSolonHealth() bool {
 
 			uuid := uuid2.New().String()
 
-			response, err := p.Config.HttpClients.Solon().Health(uuid)
+			response, err := p.HttpClients.Solon().Health(uuid)
 			if err != nil {
 				logging.Error(fmt.Sprintf("Error getting response: %s", err))
 				continue

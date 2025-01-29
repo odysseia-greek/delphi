@@ -20,16 +20,6 @@ import (
 	"time"
 )
 
-func TestPingPongRoute(t *testing.T) {
-	testConfig := &SolonHandler{}
-	router := InitRoutes(testConfig)
-	expected := "{\"result\":\"pong\"}"
-
-	w := performGetRequest(router, "/solon/v1/ping")
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, expected, w.Body.String())
-}
-
 func TestHealth(t *testing.T) {
 	t.Run("HappyPath", func(t *testing.T) {
 		fixtureFile := "info"
@@ -45,7 +35,7 @@ func TestHealth(t *testing.T) {
 			Vault:   mockVaultClient,
 		}
 
-		router := InitRoutes(testConfig)
+		router := InitRoutes(testConfig, 1*time.Minute)
 		response := performGetRequest(router, "/solon/v1/health")
 
 		var healthModel models.Health
@@ -53,48 +43,6 @@ func TestHealth(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, http.StatusOK, response.Code)
 		assert.True(t, healthModel.Healthy)
-	})
-}
-
-func TestCreateToken(t *testing.T) {
-	t.Run("HappyPath", func(t *testing.T) {
-		mockCode := 200
-		vaultFixtures := []string{"token"}
-		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
-		assert.Nil(t, err)
-
-		testConfig := &SolonHandler{
-			Vault: mockVaultClient,
-		}
-
-		router := InitRoutes(testConfig)
-		response := performGetRequest(router, "/solon/v1/token")
-
-		var token delphi.TokenResponse
-		err = json.NewDecoder(response.Body).Decode(&token)
-		assert.Nil(t, err)
-		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Contains(t, token.Token, "s.")
-	})
-
-	t.Run("VaultDown", func(t *testing.T) {
-		badAddress := "localhost:239riwefj"
-		vaultClient, err := vault.NewVaultClient(badAddress, "token", nil)
-		assert.Nil(t, err)
-
-		testConfig := &SolonHandler{
-			Vault: vaultClient,
-		}
-
-		router := InitRoutes(testConfig)
-		response := performGetRequest(router, "/solon/v1/token")
-
-		var sut models.ValidationError
-		err = json.NewDecoder(response.Body).Decode(&sut)
-		assert.Nil(t, err)
-		assert.Equal(t, http.StatusBadRequest, response.Code)
-		assert.Contains(t, sut.Messages[0].Field, "token")
-		assert.Contains(t, sut.Messages[0].Message, "")
 	})
 }
 
@@ -135,7 +83,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := InitRoutes(testConfig, 1*time.Minute)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.SolonResponse
@@ -171,7 +119,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := InitRoutes(testConfig, 1*time.Minute)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -207,7 +155,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := InitRoutes(testConfig, 1*time.Minute)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -241,7 +189,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := InitRoutes(testConfig, 1*time.Minute)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -278,7 +226,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := InitRoutes(testConfig, 1*time.Minute)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
