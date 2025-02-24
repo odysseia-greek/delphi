@@ -14,7 +14,6 @@ func InitRoutes(periklesHandler *PeriklesHandler) *mux.Router {
 
 	go periklesHandler.loopForMappingUpdates()
 	go periklesHandler.startProcessingPendingUpdates()
-	go periklesHandler.startReconciling()
 
 	return serveMux
 }

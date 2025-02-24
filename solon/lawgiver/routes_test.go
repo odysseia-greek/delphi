@@ -35,7 +35,7 @@ func TestHealth(t *testing.T) {
 			Vault:   mockVaultClient,
 		}
 
-		router := InitRoutes(testConfig, 1*time.Minute)
+		router := InitRoutes(testConfig)
 		response := performGetRequest(router, "/solon/v1/health")
 
 		var healthModel models.Health
@@ -83,7 +83,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig, 1*time.Minute)
+		router := InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.SolonResponse
@@ -119,7 +119,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig, 1*time.Minute)
+		router := InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -155,7 +155,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig, 1*time.Minute)
+		router := InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -189,7 +189,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig, 1*time.Minute)
+		router := InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -226,7 +226,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig, 1*time.Minute)
+		router := InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
