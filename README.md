@@ -7,7 +7,6 @@ Delphi holds all services that need access to vault
     - [Solon - Σόλων](#solon---σόλων)
     - [Perikles - Περικλῆς](#perikles---περικλῆς)
 - [Init](#init)
-    - [Drakon - Δράκων](#drakon---δράκων)
     - [Kleisthenes - Κλεισθένης](#kleisthenes---κλεισθένης)
     - [Peisistratos - Πεισίστρατος](#peisistratos---πεισίστρατος)
     - [Periandros - Περίανδρος](#periandros---περίανδρος)
@@ -33,14 +32,6 @@ Solon is most famous for his role as the great Athenian lawgiver following the r
 <img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Illus0362.jpg" alt="Perikles" width="200"/>
 
 ## Init
-
-### Drakon - Δράκων
-
-ἐν τοίνυν τοῖς περὶ τούτων νόμοις ὁ Δράκων φοβερὸν κατασκευάζων καὶ δεινὸν τό τινʼ αὐτόχειρʼ ἄλλον ἄλλου γίγνεσθαι - Now Draco, in this group of laws, marked the terrible wickedness of homicide by banning the offender from the lustral water
-
-<img src="https://www.greekboston.com/wp-content/uploads/2014/12/draco-720x484.jpg" alt="Drakon" width="200"/>
-
-Drakon is one of the ancient lawgivers in Athens.
 
 ### Kleisthenes - Κλεισθένης
 
