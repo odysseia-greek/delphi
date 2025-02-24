@@ -272,41 +272,15 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 func (p *PeriklesHandler) getHTTPRulesForRoleWithRegex(role, index string) []api.PortRuleHTTP {
 	var rules []api.PortRuleHTTP
 
-	switch role {
-	case SeederElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^DELETE$", Path: fmt.Sprintf("^/%s", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/_ilm/policy/%s_policy$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s/_create$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_bulk$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_doc(\\?.*)?$", index)})
-	case HybridElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^DELETE$", Path: fmt.Sprintf("^/%s", index)})
-		// this rule might not work because of Drakon and perhaps it should be added to more rules since it gives info about the index
-		rules = append(rules, api.PortRuleHTTP{Method: "^GET", Path: fmt.Sprintf("^/%s", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/_ilm/policy/%s_policy$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s/_create$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_update/[^/]+$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_doc(\\?.*)?$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_search(\\?.*)?$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: "^/_search/scroll(\\?.*)?$"})
-
-	case CreatorElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s/_create/.*$", index)})
-
-	case ApiElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_search(\\?.*)?$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: "^/_search/scroll(\\?.*)?$"})
-
-	case AliasElasticRole:
-		rules = append(rules, api.PortRuleHTTP{Method: "^DELETE$", Path: fmt.Sprintf("^/%s", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})?$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})/_aliases/%s$", index, index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/_ilm/policy/%s_policy$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^PUT$", Path: fmt.Sprintf("^/%s/.*$", index)})
-		rules = append(rules, api.PortRuleHTTP{Method: "^POST$", Path: fmt.Sprintf("^/%s/_bulk$", index)})
+	for _, rule := range p.RuleSet {
+		if rule.RoleName == role {
+			for _, cnp := range rule.CnpRules {
+				rules = append(rules, api.PortRuleHTTP{
+					Method: cnp.Method,
+					Path:   strings.Replace(cnp.Path, "%%index%%", index, -1),
+				})
+			}
+		}
 	}
 
 	healthEndpoint := api.PortRuleHTTP{Method: "^GET$", Path: "^/$"}

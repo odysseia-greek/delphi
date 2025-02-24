@@ -26,15 +26,3 @@ func (p *PeriklesHandler) startProcessingPendingUpdates() {
 		}
 	}()
 }
-
-func (p *PeriklesHandler) startReconciling() {
-	ticker := time.NewTicker(p.ReconcileTimer)
-	go func() {
-		for range ticker.C {
-			err := p.reconcileJob()
-			if err != nil {
-				logging.Error(err.Error())
-			}
-		}
-	}()
-}

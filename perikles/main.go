@@ -106,6 +106,21 @@ func main() {
 	certFile := filepath.Join(handler.TLSFiles, crtFileName)
 	keyFile := filepath.Join(handler.TLSFiles, keyFileName)
 
+	// Run the ConfigMap watcher in the background
+	go func() {
+		err := handler.WatchConfigMapChanges()
+		if err != nil {
+			logging.Error(fmt.Sprintf("Failed to start watching ConfigMap: %v", err))
+		}
+	}()
+
+	go func() {
+		err := handler.StartWatching()
+		if err != nil {
+			logging.Error(fmt.Sprintf("Failed to start watching deployments and pods: %v", err))
+		}
+	}()
+
 	logging.System(fmt.Sprintf("starting server on address: %s", port))
 	err = httpsServer.ListenAndServeTLS(certFile, keyFile)
 	if err != nil {

@@ -1,9 +1,6 @@
 package architect
 
 import (
-	"fmt"
-	"github.com/cilium/cilium/pkg/policy/api"
-	"github.com/odysseia-greek/agora/plato/config"
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
@@ -12,77 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 )
-
-func TestCheckForElasticAnnotations(t *testing.T) {
-	handler := PeriklesHandler{
-		Kube:   kubernetes.NewFakeKubeClient(),
-		L7Mode: false,
-	}
-
-	t.Run("ValidDeploymentAnnotations", func(t *testing.T) {
-		deployment := &v1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "test-namespace",
-			},
-			Spec: v1.DeploymentSpec{
-				Template: v2.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: map[string]string{
-							config.DefaultAccessAnnotation: "access-value",
-							config.DefaultRoleAnnotation:   "role-value",
-						},
-					},
-				},
-			},
-		}
-
-		err := handler.checkForElasticAnnotations(deployment, nil)
-		assert.Nil(t, err)
-	})
-
-	t.Run("ValidJobAnnotations", func(t *testing.T) {
-		job := &batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-job",
-				Namespace: "test-namespace",
-			},
-			Spec: batchv1.JobSpec{
-				Template: v2.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: map[string]string{
-							config.DefaultAccessAnnotation: "access-value",
-							config.DefaultRoleAnnotation:   "role-value",
-						},
-					},
-				},
-			},
-		}
-
-		err := handler.checkForElasticAnnotations(nil, job)
-		assert.Nil(t, err)
-	})
-
-	t.Run("MissingAnnotations", func(t *testing.T) {
-		deployment := &v1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "test-namespace",
-			},
-			Spec: v1.DeploymentSpec{
-				Template: v2.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: map[string]string{}, // Empty annotations
-					},
-				},
-			},
-		}
-
-		err := handler.checkForElasticAnnotations(deployment, nil)
-		// a warning should be printed
-		assert.Nil(t, err)
-	})
-}
 
 func TestGenerateCiliumNetworkPolicyInL3L4Mode(t *testing.T) {
 	handler := PeriklesHandler{
@@ -201,94 +127,6 @@ func TestGenerateCiliumNetworkPolicyInL7Mode(t *testing.T) {
 	t.Run("NilInputsWithL7Rules", func(t *testing.T) {
 		policy := handler.generateCiliumNetworkPolicyElastic(nil, nil, "access-value", "role-value")
 		assert.Nil(t, policy)
-	})
-}
-
-func TestL7RulesGeneration(t *testing.T) {
-	handler := PeriklesHandler{
-		L7Mode: true, // Enable L7 mode for these tests
-	}
-
-	t.Run("GetHTTPRulesForRoles", func(t *testing.T) {
-		roles := map[string][]api.PortRuleHTTP{
-			SeederElasticRole: {
-				{Method: "^DELETE$", Path: "^/index"},
-				{Method: "^PUT$", Path: "^/index"},
-				{Method: "^PUT$", Path: "^/_ilm/policy/index_policy$"},
-				{Method: "^PUT$", Path: "^/index/_create$"},
-				{Method: "^POST$", Path: "^/index/_bulk$"},
-				{Method: "^POST$", Path: "^/index/_doc(\\?.*)?$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check
-			},
-			HybridElasticRole: {
-				{Method: "^DELETE$", Path: "^/index"},
-				{Method: "^GET", Path: "^/index"},
-				{Method: "^PUT$", Path: "^/index"},
-				{Method: "^PUT$", Path: "^/_ilm/policy/index_policy$"},
-				{Method: "^PUT$", Path: "^/index/_create$"},
-				{Method: "^POST$", Path: "^/index/_update/[^/]+$"},
-				{Method: "^POST$", Path: "^/index/_doc(\\?.*)?$"},
-				{Method: "^POST$", Path: "^/index/_search(\\?.*)?$"},
-				{Method: "^POST$", Path: "^/_search/scroll(\\?.*)?$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check
-			},
-			CreatorElasticRole: {
-				{Method: "^PUT$", Path: "^/index/_create/.*$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check
-			},
-			ApiElasticRole: {
-				{Method: "^POST$", Path: "^/index/_search(\\?.*)?$"},
-				{Method: "^POST$", Path: "^/_search/scroll(\\?.*)?$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check
-			},
-			AliasElasticRole: {
-				{Method: "^DELETE$", Path: "^/index"},
-				{Method: "^PUT$", Path: "^/index"},
-				{Method: "^PUT$", Path: "^/index(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})?$"},
-				{Method: "^PUT$", Path: "^/index(-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})/_aliases/index$"},
-				{Method: "^PUT$", Path: "^/_ilm/policy/index_policy$"},
-				{Method: "^PUT$", Path: "^/index/.*$"},
-				{Method: "^POST$", Path: "^/index/_bulk$"},
-				{Method: "^GET$", Path: "^/$"}, // Default health check
-			},
-		}
-
-		for role, expectedRules := range roles {
-			t.Run(fmt.Sprintf("Role=%s", role), func(t *testing.T) {
-				rules := handler.getHTTPRulesForRoleWithRegex(role, "index")
-				assert.Equal(t, len(expectedRules), len(rules), "Rule count mismatch for role: %s", role)
-				for i, rule := range rules {
-					assert.Equal(t, expectedRules[i].Method, rule.Method, "Mismatch in Method for role: %s at rule %d", role, i)
-					assert.Equal(t, expectedRules[i].Path, rule.Path, "Mismatch in Path for role: %s at rule %d", role, i)
-				}
-			})
-		}
-	})
-
-	t.Run("DetermineSideCarRules", func(t *testing.T) {
-		containers := []v2.Container{
-			{Name: "aristophanes-tracing"},
-			{Name: "sophokles-metrics"},
-		}
-		initContainers := []v2.Container{
-			{Name: "init-pe-container"},
-		}
-
-		rules := handler.determineSideCars(containers, initContainers)
-
-		expectedRules := []api.PortRuleHTTP{
-			{Method: "^POST$", Path: fmt.Sprintf("^/%s/_update/.*$", config.TracingElasticIndex)},
-			{Method: "^POST$", Path: fmt.Sprintf("^/%s-.*/_update/.*$", config.TracingElasticIndex)},
-			{Method: "^PUT$", Path: fmt.Sprintf("^/%s$", config.TracingElasticIndex)},
-			{Method: "^PUT$", Path: fmt.Sprintf("^/%s/.*$", config.TracingElasticIndex)},
-			{Method: "^PUT$", Path: fmt.Sprintf("^/%s-.*/.*$", config.TracingElasticIndex)},
-		}
-
-		assert.Equal(t, len(expectedRules), len(rules))
-		for i, rule := range rules {
-			assert.Equal(t, expectedRules[i].Method, rule.Method)
-			assert.Equal(t, expectedRules[i].Path, rule.Path)
-		}
 	})
 }
 

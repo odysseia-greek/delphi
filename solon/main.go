@@ -36,10 +36,16 @@ func main() {
 	}
 
 	// Setup server
-	ticker := time.Minute * 10
-	srv := lawgiver.InitRoutes(solonHandler, ticker)
+	srv := lawgiver.InitRoutes(solonHandler)
 	logging.System(fmt.Sprintf("TLS enabled: %v", solonHandler.TLSEnabled))
 	logging.System(fmt.Sprintf("Running on port: %s", port))
+
+	go func() {
+		err := solonHandler.StartWatching()
+		if err != nil {
+			logging.Error(fmt.Sprintf("Failed to start watching deployments and pods: %v", err))
+		}
+	}()
 
 	if solonHandler.TLSEnabled {
 		startTLSServer(port, srv)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
+	"github.com/odysseia-greek/agora/aristoteles"
 	"github.com/odysseia-greek/agora/plato/certificates"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
@@ -14,7 +15,6 @@ import (
 	"io"
 	"k8s.io/api/admission/v1beta1"
 	v1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"sync"
@@ -28,12 +28,15 @@ type PeriklesHandler struct {
 	ReconcileTimer     time.Duration
 	PendingUpdates     map[string][]MappingUpdate
 	Kube               *thales.KubeClient
+	Elastic            aristoteles.Client
 	Mapping            odysseia.ServiceMapping
 	Cert               certificates.CertClient
 	CiliumClient       *versioned.Clientset
+	RuleSet            []CnpRuleSet
 	Namespace          string
 	CrdName            string
 	TLSFiles           string
+	ConfigMapName      string
 	L7Mode             bool
 }
 
@@ -101,7 +104,7 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 	raw := arRequest.Request.Object.Raw
 
 	// buffered channel for goroutine error reporting
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 1)
 	wg := &sync.WaitGroup{}
 
 	switch kubeType {
@@ -121,44 +124,12 @@ func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		wg.Add(2)
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			err := p.checkForAnnotations(&deploy)
 			if err != nil {
 				errCh <- fmt.Errorf("checkForAnnotations error: %w", err)
-			}
-		}()
-
-		go func() {
-			defer wg.Done()
-			err := p.checkForElasticAnnotations(&deploy, nil)
-			if err != nil {
-				errCh <- fmt.Errorf("checkForElasticAnnotations error: %w", err)
-			}
-		}()
-	case "Job":
-		job := batchv1.Job{}
-		if err := json.Unmarshal(raw, &job); err != nil {
-			e := models.ValidationError{
-				ErrorModel: models.ErrorModel{UniqueCode: requestId},
-				Messages: []models.ValidationMessages{
-					{
-						Field:   "body",
-						Message: "incorrect body was sent: cannot unmarshal request into Job",
-					},
-				},
-			}
-			middleware.ResponseWithJson(w, e)
-			return
-		}
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := p.checkForElasticAnnotations(nil, &job)
-			if err != nil {
-				errCh <- fmt.Errorf("checkForElasticAnnotations error: %w", err)
 			}
 		}()
 	}

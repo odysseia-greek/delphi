@@ -1,11 +1,12 @@
 module github.com/odysseia-greek/delphi/perikles
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/cilium/cilium v1.16.3
 	github.com/gorilla/mux v1.8.1
-	github.com/odysseia-greek/agora/plato v0.1.45
+	github.com/odysseia-greek/agora/aristoteles v0.1.13
+	github.com/odysseia-greek/agora/plato v0.1.49
 	github.com/odysseia-greek/agora/thales v0.1.11
 	github.com/stretchr/testify v1.9.0
 	k8s.io/api v0.31.2
@@ -22,6 +23,8 @@ require (
 	github.com/cilium/hive v0.0.0-20240529072208-d997f86e4219 // indirect
 	github.com/cilium/proxy v0.0.0-20240418093727-2c7164c53e26 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/elastic/elastic-transport-go/v8 v8.6.0 // indirect
+	github.com/elastic/go-elasticsearch/v8 v8.14.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
