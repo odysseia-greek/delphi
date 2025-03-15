@@ -86,7 +86,7 @@ _"Periander, who disclosed the oracle's answer to Thrasybulus, was the son of Cy
 
 ### Aristides - Ἀριστείδης
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Aristides_-_Alonso_Cano.jpg/480px-Aristides_-_Alonso_Cano.jpg" alt="Aristides" width="200"/>
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Aristides_and_the_Citizens.jpg/1024px-Aristides_and_the_Citizens.jpg" alt="Aristides" width="200"/>
 
 **"Aristides the Just" was a statesman and general, known for his integrity and role in shaping Athenian democracy.**
 
