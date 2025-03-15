@@ -5,7 +5,7 @@ import (
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/agora/plato/service"
-	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
+	pb "github.com/odysseia-greek/delphi/aristides/proto"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 	"testing"

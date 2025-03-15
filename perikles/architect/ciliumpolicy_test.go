@@ -170,7 +170,7 @@ func TestGenerateServiceToServiceNetworkPolicy(t *testing.T) {
 
 	t.Run("GeneratePolicyWithVaultAccess", func(t *testing.T) {
 		containers := []v2.Container{
-			{Name: "ptolemaios"},
+			{Name: "aristides"},
 		}
 
 		hostsAnnotation := "test-host"

@@ -2,7 +2,7 @@ package diplomat
 
 import (
 	"context"
-	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
+	pb "github.com/odysseia-greek/delphi/aristides/proto"
 	"github.com/stretchr/testify/mock"
 	"time"
 )

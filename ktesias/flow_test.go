@@ -10,20 +10,23 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/service"
-	"github.com/odysseia-greek/delphi/ptolemaios/diplomat"
-	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
+	"github.com/odysseia-greek/delphi/aristides/diplomat"
+	pb "github.com/odysseia-greek/delphi/aristides/proto"
 	"google.golang.org/grpc/metadata"
 	"os"
 	"strings"
 	"time"
 )
 
-func (l *OdysseiaFixture) ptolemaiosIsAskedForTheCurrentConfig() error {
-	ambassador := diplomat.NewClientAmbassador()
+func (l *OdysseiaFixture) aristidesIsAskedForTheCurrentConfig() error {
+	ambassador, err := diplomat.NewClientAmbassador(diplomat.DEFAULTADDRESS)
+	if err != nil {
+		return err
+	}
 
 	healthy := ambassador.WaitForHealthyState()
 	if !healthy {
-		logging.Info("ptolemaios service not ready - restarting seems the only option")
+		logging.Info("aristides service not ready - restarting seems the only option")
 		os.Exit(1)
 	}
 
