@@ -2,10 +2,12 @@ package diplomat
 
 import (
 	"context"
+	"fmt"
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/service"
-	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
+	pb "github.com/odysseia-greek/delphi/aristides/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"time"
 )
 
@@ -27,7 +29,7 @@ type AmbassadorServiceImpl struct {
 	PodName     string
 	Namespace   string
 	FullPodName string
-	pb.UnimplementedPtolemaiosServer
+	pb.UnimplementedAristidesServer
 }
 
 type AmbassadorServiceClient struct {
@@ -35,14 +37,20 @@ type AmbassadorServiceClient struct {
 }
 
 type ClientAmbassador struct {
-	ambassador pb.PtolemaiosClient
+	ambassador pb.AristidesClient
 }
 
-func NewClientAmbassador() *ClientAmbassador {
-	// Initialize the gRPC client for the tracing service
-	conn, _ := grpc.Dial(DEFAULTADDRESS, grpc.WithInsecure())
-	client := pb.NewPtolemaiosClient(conn)
-	return &ClientAmbassador{ambassador: client}
+func NewClientAmbassador(address string) (*ClientAmbassador, error) {
+	if address == "" {
+		address = DEFAULTADDRESS
+	}
+
+	conn, err := grpc.NewClient(DEFAULTADDRESS, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create grpc server: %w", err)
+	}
+	client := pb.NewAristidesClient(conn)
+	return &ClientAmbassador{ambassador: client}, nil
 }
 
 func (c *ClientAmbassador) WaitForHealthyState() bool {

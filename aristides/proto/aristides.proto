@@ -1,11 +1,11 @@
 syntax = "proto3";
-option go_package = "github.com/odysseia-greek/delphi/ptolemaios/proto";
+option go_package = "github.com/odysseia-greek/delphi/aristides/proto";
 
-package delphi_ptolemaios;
+package delphi_aristides;
 
 
-service Ptolemaios {
-  // Get the config from ptolemaios
+service Aristides {
+  // Get the config from aristides
   rpc GetSecret (VaultRequest) returns (ElasticConfigVault) {}
   rpc GetNamedSecret (VaultRequestNamed) returns (ElasticConfigVault) {}
   rpc Health (HealthRequest) returns (HealthResponse) {}
