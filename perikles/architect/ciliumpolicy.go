@@ -155,7 +155,7 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 	}
 
 	for _, container := range containers {
-		if container.Name == "ptolemaios" {
+		if container.Name == "aristides" {
 			logging.Debug(fmt.Sprintf("container found in deploy %s that requires vault access so adding np", name))
 			err := p.generateVaultNetworkPolicy(name, namespace)
 			if err != nil {

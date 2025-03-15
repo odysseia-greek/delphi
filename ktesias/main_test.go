@@ -8,8 +8,8 @@ import (
 	"github.com/cucumber/godog/colors"
 	"github.com/google/uuid"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/ptolemaios/diplomat"
-	pb "github.com/odysseia-greek/delphi/ptolemaios/proto"
+	"github.com/odysseia-greek/delphi/aristides/diplomat"
+	pb "github.com/odysseia-greek/delphi/aristides/proto"
 	"os"
 	"strings"
 	"testing"
@@ -103,7 +103,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the tokens are not usable twice$`, odysseia.theTokensAreNotUsableTwice)
 
 	// flow
-	ctx.Step(`^ptolemaios is asked for the current config$`, odysseia.ptolemaiosIsAskedForTheCurrentConfig)
+	ctx.Step(`^aristides is asked for the current config$`, odysseia.aristidesIsAskedForTheCurrentConfig)
 	ctx.Step(`^a call is made to the correct index with the correct action$`, odysseia.aCallIsMadeToTheCorrectIndexWithTheCorrectAction)
 	ctx.Step(`^an elastic client is created with the one time token that was created$`, odysseia.anElasticClientIsCreatedWithTheOneTimeTokenThatWasCreated)
 	ctx.Step(`^a (\d+) should be returned$`, odysseia.aShouldBeReturned)
@@ -146,16 +146,19 @@ func TestMain(m *testing.M) {
 		Options:              &opts,
 	}.Run()
 
-	ambassador := diplomat.NewClientAmbassador()
+	ambassador, err := diplomat.NewClientAmbassador(diplomat.DEFAULTADDRESS)
+	if err != nil {
+		logging.Error(fmt.Sprintf("Unable to create ambassador client: %v", err))
+	}
 
 	healthy := ambassador.WaitForHealthyState()
 	if !healthy {
-		logging.Info("ptolemaios service not ready - restarting seems the only option")
+		logging.Info("aristides service not ready - restarting seems the only option")
 		os.Exit(1)
 	}
 
 	uuidCode := uuid.New().String()
-	_, err := ambassador.ShutDown(context.Background(), &pb.ShutDownRequest{Code: uuidCode})
+	_, err = ambassador.ShutDown(context.Background(), &pb.ShutDownRequest{Code: uuidCode})
 	if err != nil {
 		logging.Error(err.Error())
 	}

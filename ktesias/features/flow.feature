@@ -13,15 +13,15 @@ Scenario: a pod register is made and checked in elastic
   Then a 200 should be returned
 
   @flow
-  Scenario: the side car ptolemaios is used to query data
-    Given ptolemaios is asked for the current config
+  Scenario: the side car aristides is used to query data
+    Given aristides is asked for the current config
     And an elastic client is created with the vault data
     When a call is made to the correct index with the correct action
     Then a 200 should be returned
 
   @flow
   Scenario: cross access to an index is blocked by the roles created by drakon
-    Given ptolemaios is asked for the current config
+    Given aristides is asked for the current config
     And an elastic client is created with the vault data
     When a call is made to an index not part of the annotations
     Then a 403 should be returned
