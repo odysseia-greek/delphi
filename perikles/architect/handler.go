@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
-	"github.com/odysseia-greek/agora/aristoteles"
 	"github.com/odysseia-greek/agora/plato/certificates"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
@@ -28,7 +27,6 @@ type PeriklesHandler struct {
 	ReconcileTimer     time.Duration
 	PendingUpdates     map[string][]MappingUpdate
 	Kube               *thales.KubeClient
-	Elastic            aristoteles.Client
 	Mapping            odysseia.ServiceMapping
 	Cert               certificates.CertClient
 	CiliumClient       *versioned.Clientset
@@ -38,6 +36,9 @@ type PeriklesHandler struct {
 	TLSFiles           string
 	ConfigMapName      string
 	L7Mode             bool
+	VaultNs            string
+	ElasticNs          string
+	WatchedNamespaces  []string
 }
 
 // pingPong pongs the ping
@@ -49,6 +50,8 @@ func (p *PeriklesHandler) pingPong(w http.ResponseWriter, req *http.Request) {
 func (p *PeriklesHandler) validate(w http.ResponseWriter, req *http.Request) {
 	requestId := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestId)
+
+	logging.Debug("received a call to validate")
 
 	var body []byte
 	if req.Body != nil {

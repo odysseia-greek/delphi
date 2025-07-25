@@ -10,6 +10,7 @@ import (
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	aristophanes "github.com/odysseia-greek/attike/aristophanes/comedy"
 	"os"
+	"strings"
 )
 
 func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
@@ -44,7 +45,11 @@ func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
 		return nil, err
 	}
 
-	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
+	var namespaces Namespaces
+	namespaces.SolonNamespace = config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
+
+	otherNamespacesFromEnv := config.StringFromEnv("SOLON_MANAGED_NAMESPACES", "")
+	namespaces.WatchedNamespaces = strings.Split(otherNamespacesFromEnv, ";")
 
 	tracer, err := aristophanes.NewClientTracer(aristophanes.DefaultAddress)
 	if err != nil {
@@ -69,7 +74,7 @@ func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
 		Elastic:          elastic,
 		ElasticCert:      []byte(cert),
 		Kube:             kube,
-		Namespace:        ns,
+		Namespaces:       namespaces,
 		AccessAnnotation: config.DefaultAccessAnnotation,
 		RoleAnnotation:   config.DefaultRoleAnnotation,
 		TLSEnabled:       tls,

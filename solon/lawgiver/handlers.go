@@ -26,7 +26,7 @@ type SolonHandler struct {
 	Elastic          aristoteles.Client
 	ElasticCert      []byte
 	Kube             *kubernetes.KubeClient
-	Namespace        string
+	Namespaces       Namespaces
 	AccessAnnotation string
 	RoleAnnotation   string
 	TLSEnabled       bool

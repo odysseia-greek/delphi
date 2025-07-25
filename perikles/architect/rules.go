@@ -3,7 +3,6 @@ package architect
 import (
 	"context"
 	"fmt"
-	"github.com/odysseia-greek/agora/aristoteles/models"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
@@ -33,7 +32,7 @@ func (p *PeriklesHandler) WatchConfigMapChanges() error {
 				if configMap.Name == p.ConfigMapName {
 					logging.Debug(fmt.Sprintf("ConfigMap %s changed: %s", configMap.Name, event.Type))
 
-					err := p.createElasticRoles(configMap.Data)
+					err := p.setCnpRules(configMap.Data)
 					if err != nil {
 						logging.Error(fmt.Sprintf("Failed to handle config map change: %v", err))
 					}
@@ -45,7 +44,7 @@ func (p *PeriklesHandler) WatchConfigMapChanges() error {
 	select {}
 }
 
-func (p *PeriklesHandler) createElasticRoles(configMap map[string]string) error {
+func (p *PeriklesHandler) setCnpRules(configMap map[string]string) error {
 	// Loop through each role in the configMap
 	var mappings []CnpRuleSet
 	for roleName, roleData := range configMap {
@@ -60,49 +59,6 @@ func (p *PeriklesHandler) createElasticRoles(configMap map[string]string) error 
 			RoleName: roleName,
 			CnpRules: role.CnpRules,
 		})
-
-		// Validate that we have indices and privileges
-		if len(role.Indices) == 0 || len(role.Role.Privileges) == 0 {
-			logging.Error(fmt.Sprintf("Role %s does not have valid indices or privileges", roleName))
-			continue
-		}
-
-		// Create the role for each index
-		for _, index := range role.Indices {
-			logging.Debug(fmt.Sprintf("creating a role for index %s with role %s", index, roleName))
-
-			// Prepare the Elasticsearch role creation request
-			names := []string{index}
-
-			// extra rule that should be set in the configmap
-			if roleName == "alias" {
-				names = []string{fmt.Sprintf("%s*", index)}
-			}
-
-			elasticIndices := []models.Indices{
-				{
-					Names:      names,
-					Privileges: role.Role.Privileges,
-					Query:      "",
-				},
-			}
-
-			putRole := models.CreateRoleRequest{
-				Cluster:      []string{"all"},
-				Indices:      elasticIndices,
-				Applications: []models.Application{},
-				RunAs:        nil,
-				Metadata:     models.Metadata{Version: 1},
-			}
-
-			nameInElastic := fmt.Sprintf("%s_%s", index, roleName)
-			roleCreated, err := p.Elastic.Access().CreateRole(nameInElastic, putRole)
-			if err != nil {
-				return fmt.Errorf("failed to create role %s for index %s: %v", roleName, index, err)
-			}
-
-			logging.Info(fmt.Sprintf("role: %s - created: %v", nameInElastic, roleCreated))
-		}
 	}
 
 	p.RuleSet = mappings

@@ -39,13 +39,23 @@ func (s *SolonHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
-			if pod.Namespace != s.Namespace {
-				return
+			var inManagedNameSpace bool
+			if pod.Namespace == s.Namespaces.SolonNamespace {
+				inManagedNameSpace = true
 			}
 
-			err := s.deleteOrphans(pod)
-			if err != nil {
-				logging.Error(err.Error())
+			for _, ns := range s.Namespaces.WatchedNamespaces {
+				if pod.Namespace == ns {
+					inManagedNameSpace = true
+					break
+				}
+			}
+
+			if inManagedNameSpace {
+				err := s.deleteOrphans(pod)
+				if err != nil {
+					logging.Error(err.Error())
+				}
 			}
 		},
 	}

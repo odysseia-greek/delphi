@@ -17,14 +17,6 @@ import (
 	"time"
 )
 
-const (
-	CreatorElasticRole = "creator"
-	SeederElasticRole  = "seeder"
-	HybridElasticRole  = "hybrid"
-	ApiElasticRole     = "api"
-	AliasElasticRole   = "alias"
-)
-
 func (p *PeriklesHandler) generateVaultNetworkPolicy(name, namespace string) error {
 	newAnnotation := make(map[string]string)
 	newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)
@@ -37,7 +29,7 @@ func (p *PeriklesHandler) generateVaultNetworkPolicy(name, namespace string) err
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("allow-%s-access-vault", name),
-			Namespace:   namespace,
+			Namespace:   p.VaultNs,
 			Annotations: newAnnotation,
 		},
 		Spec: &api.Rule{
@@ -54,7 +46,7 @@ func (p *PeriklesHandler) generateVaultNetworkPolicy(name, namespace string) err
 						FromEndpoints: []api.EndpointSelector{
 							{
 								LabelSelector: &slimmetav1.LabelSelector{
-									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name},
+									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name, "io.kubernetes.pod.namespace": namespace},
 								},
 							},
 						},
@@ -73,7 +65,7 @@ func (p *PeriklesHandler) generateVaultNetworkPolicy(name, namespace string) err
 			},
 		},
 	}
-	err := p.applyNetworkPolicy(&vaultPolicy)
+	err := p.applyNetworkPolicy(&vaultPolicy, p.VaultNs)
 	if err != nil {
 		return err
 	}
@@ -93,7 +85,10 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 	}
 
 	for _, host := range hosts {
-		ports, err := p.findServicePortsForDeployment(host, namespace)
+		if host == "aristarchos" {
+			logging.Debug(fmt.Sprintf("host %s is aristarchos so skipping np", host))
+		}
+		ports, hostNamespace, err := p.findServicePortsForDeployment(host)
 		if err != nil {
 			logging.Error(err.Error())
 			continue
@@ -116,7 +111,7 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        fmt.Sprintf("allow-%s-access-%s", name, host),
-				Namespace:   namespace,
+				Namespace:   hostNamespace,
 				Annotations: newAnnotation,
 			},
 			Spec: &api.Rule{
@@ -133,7 +128,8 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 							FromEndpoints: []api.EndpointSelector{
 								{
 									LabelSelector: &slimmetav1.LabelSelector{
-										MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name},
+										MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name,
+											"io.kubernetes.pod.namespace": namespace},
 									},
 								},
 							},
@@ -148,7 +144,7 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 			},
 		}
 
-		err = p.applyNetworkPolicy(&policy)
+		err = p.applyNetworkPolicy(&policy, hostNamespace)
 		if err != nil {
 			logging.Error(err.Error())
 		}
@@ -200,7 +196,7 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("restrict-elasticsearch-access-%s", name),
-			Namespace:   namespace,
+			Namespace:   p.ElasticNs,
 			Annotations: newAnnotation,
 		},
 		Spec: &api.Rule{
@@ -217,7 +213,8 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 						FromEndpoints: []api.EndpointSelector{
 							{
 								LabelSelector: &slimmetav1.LabelSelector{
-									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name},
+									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name,
+										"io.kubernetes.pod.namespace": namespace},
 								},
 							},
 						},
@@ -328,22 +325,60 @@ func (p *PeriklesHandler) determineSideCars(containers []v2.Container, init []v2
 	return rules
 }
 
-func (p *PeriklesHandler) findServicePortsForDeployment(deployName, namespace string) ([]v2.ServicePort, error) {
-	ctx := context.Background()
+func (p *PeriklesHandler) findServicePortsForDeployment(deployName string) ([]v2.ServicePort, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
-	// Get the Deployment
-	deployment, err := p.Kube.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deployment %s: %w", deployName, err)
+	// Search in watched namespaces first
+	namespacesToSearch := append([]string{p.Namespace}, p.WatchedNamespaces...)
+
+	for _, ns := range namespacesToSearch {
+		deployment, err := p.Kube.AppsV1().Deployments(ns).Get(ctx, deployName, metav1.GetOptions{})
+		if err == nil {
+			ports, err := p.getServicePortsFromDeployment(deployment, ctx)
+			return ports, deployment.Namespace, err
+		}
 	}
 
+	// If not found, search in all namespaces
+	namespaceList, err := p.Kube.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list namespaces: %w", err)
+	}
+
+	// Skip namespaces we've already searched
+	for _, ns := range namespaceList.Items {
+		alreadySearched := false
+		for _, searchedNs := range namespacesToSearch {
+			if ns.Name == searchedNs {
+				alreadySearched = true
+				break
+			}
+		}
+
+		if alreadySearched {
+			continue
+		}
+
+		deployment, err := p.Kube.AppsV1().Deployments(ns.Name).Get(ctx, deployName, metav1.GetOptions{})
+		if err == nil {
+			ports, err := p.getServicePortsFromDeployment(deployment, ctx)
+			return ports, deployment.Namespace, err
+		}
+	}
+
+	return nil, "", fmt.Errorf("no deployment found with name %s in any namespace", deployName)
+}
+
+// Helper function to extract service ports from a deployment
+func (p *PeriklesHandler) getServicePortsFromDeployment(deployment *v1.Deployment, ctx context.Context) ([]v2.ServicePort, error) {
 	// Extract labels from the Deployment's pod template
 	labels := deployment.Spec.Template.Labels
 	if labels == nil {
 		return nil, fmt.Errorf("deployment %s has no labels", deployment.Name)
 	}
 
-	// List Services in the namespace
+	// List Services in the deployment's namespace
 	services, err := p.Kube.CoreV1().Services(deployment.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list services in namespace %s: %w", deployment.Namespace, err)

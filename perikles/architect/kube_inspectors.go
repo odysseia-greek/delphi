@@ -46,7 +46,21 @@ func (p *PeriklesHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
-			if pod.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if pod.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if pod.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
@@ -58,7 +72,7 @@ func (p *PeriklesHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 			if deployment != nil {
 				if hostsAnnotation, exists := deployment.Spec.Template.Annotations[AnnotationHost]; exists {
 					secretName := fmt.Sprintf("%s-tls-certs", hostsAnnotation)
-					err = p.ensureSecrets(secretName)
+					err = p.ensureSecrets(secretName, deployment.Namespace)
 					if err != nil {
 						err := p.checkForAnnotations(deployment)
 						if err != nil {
@@ -98,7 +112,21 @@ func (p *PeriklesHandler) handleDeploymentEvents() cache.ResourceEventHandlerFun
 				return
 			}
 
-			if deploy.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if deploy.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if deploy.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
@@ -115,12 +143,26 @@ func (p *PeriklesHandler) handleDeploymentEvents() cache.ResourceEventHandlerFun
 				return
 			}
 
-			if deploy.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if deploy.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if deploy.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
 			logging.System(fmt.Sprintf("deploy deleted: name=%s, namespace=%s", deploy.Name, deploy.Namespace))
-			if err := p.cleanUpNetWorkPolicies(deploy.Name); err != nil {
+			if err := p.cleanUpNetWorkPolicies(deploy.Name, deploy.Namespace); err != nil {
 				logging.Error(fmt.Sprintf("Failed to clean up network policies for %s: %v", deploy.Name, err))
 			}
 			// Clean up mapping
@@ -140,7 +182,21 @@ func (p *PeriklesHandler) handleJobEvents() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
-			if job.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if job.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if job.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
@@ -157,12 +213,26 @@ func (p *PeriklesHandler) handleJobEvents() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
-			if job.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if job.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if job.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
 			logging.System(fmt.Sprintf("job deleted: name=%s, namespace=%s", job.Name, job.Namespace))
-			err := p.cleanUpNetWorkPolicies(job.Name)
+			err := p.cleanUpNetWorkPolicies(job.Name, job.Namespace)
 			if err != nil {
 				logging.Error(err.Error())
 			}

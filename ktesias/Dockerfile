@@ -1,5 +1,5 @@
 # Base build
-FROM golang:1.23-alpine as base
+FROM golang:1.24-alpine as base
 
 ARG project_name
 ARG TARGETOS

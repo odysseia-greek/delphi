@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -59,7 +60,9 @@ func main() {
 	}
 
 	if created {
-		logging.Debug("CRD created")
+		logging.Debug("CRD created waiting 20s for it to be ready...")
+		time.Sleep(20 * time.Second)
+
 	} else {
 		logging.Debug("CRD not created, it might already exist")
 	}
@@ -106,7 +109,6 @@ func main() {
 	certFile := filepath.Join(handler.TLSFiles, crtFileName)
 	keyFile := filepath.Join(handler.TLSFiles, keyFileName)
 
-	// Run the ConfigMap watcher in the background
 	go func() {
 		err := handler.WatchConfigMapChanges()
 		if err != nil {
