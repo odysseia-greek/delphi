@@ -82,7 +82,6 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	}
 
 	// perikles
-	ctx.Step(`^a secret should be created for tls certs for host "([^"]*)"$`, odysseia.aSecretShouldBeCreatedForTlsCertsForHost)
 	ctx.Step(`^CiliumNetWorkPolicies should exist for role "([^"]*)" from host "([^"]*)"$`, odysseia.ciliumNetWorkPoliciesShouldExistForRoleFromHost)
 	ctx.Step(`^the created resource "([^"]*)" is checked after a wait$`, odysseia.theCreatedResourceIsCheckedAfterAWait)
 	ctx.Step(`^a CiliumNetWorkPolicy should exist for access from the deployment "([^"]*)" to the host "([^"]*)"$`, odysseia.aCiliumNetWorkPolicyShouldExistForAccessFromTheDeploymentToTheHost)

@@ -1,4 +1,4 @@
-package lawgiver
+package stoa
 
 import (
 	"github.com/gorilla/mux"
@@ -11,7 +11,7 @@ func InitRoutes(solonHandler *SolonHandler) *mux.Router {
 	serveMux := mux.NewRouter()
 
 	serveMux.HandleFunc("/solon/v1/health", middleware.Adapt(solonHandler.Health, middleware.ValidateRestMethod("GET")))
-	serveMux.HandleFunc("/solon/v1/token", middleware.Adapt(solonHandler.CreateOneTimeToken, middleware.ValidateRestMethod("GET"), middleware.Adapter(comedy.TraceWithLogAndSpan(solonHandler.Streamer))))
+	serveMux.HandleFunc("/solon/v1/token", middleware.Adapt(solonHandler.CreateOneTimeToken, middleware.ValidateRestMethod("GET"), middleware.Adapter(comedy.TraceWithHopStop(solonHandler.Streamer))))
 	serveMux.HandleFunc("/solon/v1/register", middleware.Adapt(solonHandler.RegisterService, middleware.ValidateRestMethod("POST"), middleware.LogRequestDetails()))
 
 	return serveMux

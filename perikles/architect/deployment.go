@@ -3,18 +3,10 @@ package architect
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/odysseia-greek/agora/plato/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
-)
-
-const (
-	IgnoreInGitOps       = "gitops.ignore"
-	AnnotationUpdate     = "perikles/updated"
-	AnnotationValidity   = "perikles/validity"
-	AnnotationHost       = "perikles/hostname"
-	AnnotationAccesses   = "perikles/accesses"
-	AnnotationHostSecret = "perikles/hostsecret"
 )
 
 func (p *PeriklesHandler) restartDeployment(ns, deploymentName string) error {

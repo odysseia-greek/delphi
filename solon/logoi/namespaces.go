@@ -1,4 +1,4 @@
-package lawgiver
+package logoi
 
 type Namespaces struct {
 	SolonNamespace    string

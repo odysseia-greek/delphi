@@ -3,6 +3,7 @@ package architect
 import (
 	"context"
 	"fmt"
+
 	ciliumv2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
@@ -22,6 +23,7 @@ func (p *PeriklesHandler) checkForElasticAnnotations(deployment *v1.Deployment, 
 	var accessToServices string
 	var kubeObject string
 	var namespace string
+	var kubeType string
 	var containers []v2.Container
 
 	if deployment != nil {
@@ -29,6 +31,7 @@ func (p *PeriklesHandler) checkForElasticAnnotations(deployment *v1.Deployment, 
 		kubeObject = deployment.Name
 		namespace = deployment.Namespace
 		containers = deployment.Spec.Template.Spec.Containers
+		kubeType = "deployment"
 	}
 
 	if job != nil {
@@ -36,6 +39,7 @@ func (p *PeriklesHandler) checkForElasticAnnotations(deployment *v1.Deployment, 
 		kubeObject = job.Name
 		namespace = job.Namespace
 		containers = job.Spec.Template.Spec.Containers
+		kubeType = "job"
 	}
 
 	for key, value := range annotations {
@@ -53,7 +57,7 @@ func (p *PeriklesHandler) checkForElasticAnnotations(deployment *v1.Deployment, 
 	}
 
 	if accessToServices != "" {
-		p.generateServiceToServiceNetworkPolicy(kubeObject, namespace, accessToServices, containers)
+		p.generateServiceToServiceNetworkPolicy(kubeObject, namespace, accessToServices, kubeType, containers)
 	}
 
 	if access == "" || role == "" {
@@ -62,6 +66,9 @@ func (p *PeriklesHandler) checkForElasticAnnotations(deployment *v1.Deployment, 
 	}
 
 	policy := p.generateCiliumNetworkPolicyElastic(deployment, job, access, role)
+	if policy == nil {
+		return fmt.Errorf("failed to generate elastic policy")
+	}
 	err := p.applyNetworkPolicy(policy, p.ElasticNs)
 	if err != nil {
 		return err
@@ -139,7 +146,7 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 										matchLabels["app"] = value
 										delete(matchLabels, "any:app")
 									}
-									
+
 									if value, ok := matchLabels["io:kubernetes.pod.namespace"]; ok {
 										matchLabels["io.kubernetes.pod.namespace"] = value
 										delete(matchLabels, "io:kubernetes.pod.namespace")

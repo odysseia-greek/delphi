@@ -2,14 +2,11 @@ package architect
 
 import (
 	"fmt"
-	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/agora/thales/crd/v1alpha"
 	"math/rand"
 	"time"
-)
 
-const (
-	timeFormat string = "2006-01-02 15:04:05"
+	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping/crd/v1alpha"
 )
 
 func (p *PeriklesHandler) addHostToMapping(update MappingUpdate) error {
@@ -26,6 +23,7 @@ func (p *PeriklesHandler) addHostToMapping(update MappingUpdate) error {
 			if service.Name == update.HostName {
 				service.Active = true
 				service.Validity = update.Validity
+				service.Namespace = update.Namespace
 				service.KubeType = update.KubeType
 				service.SecretName = update.SecretName
 				mapping.Spec.Services[i] = service
@@ -37,7 +35,7 @@ func (p *PeriklesHandler) addHostToMapping(update MappingUpdate) error {
 		service := v1alpha.Service{
 			Name:       update.HostName,
 			KubeType:   update.KubeType,
-			Namespace:  p.Namespace,
+			Namespace:  update.Namespace,
 			SecretName: update.SecretName,
 			Active:     true,
 			Validity:   update.Validity,
@@ -69,21 +67,6 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 
 		if redeploy {
 			logging.Debug(fmt.Sprintf("redeploy needed for service: %s", service.Name))
-			logging.Debug("creating new certs after validity ran out")
-			orgName := service.Namespace
-			hostName := service.Name
-
-			hosts := []string{
-				fmt.Sprintf("%s", hostName),
-				fmt.Sprintf("%s.%s", hostName, orgName),
-				fmt.Sprintf("%s.%s.svc", hostName, orgName),
-				fmt.Sprintf("%s.%s.svc.cluster.local", hostName, orgName),
-			}
-			err = p.createCert(hosts, service.Validity, service.SecretName)
-			if err != nil {
-				return err
-			}
-
 			go p.staggerRestarts(service)
 		}
 	}
@@ -139,7 +122,7 @@ func (p *PeriklesHandler) processPendingUpdates() {
 	}
 }
 
-func (p *PeriklesHandler) addClientToPendingUpdates(hostName, clientName, kubeType, secretName string, validity int, isHostUpdate bool) {
+func (p *PeriklesHandler) addClientToPendingUpdates(hostName, clientName, kubeType, secretName, namespace string, validity int, isHostUpdate bool) {
 	p.Mutex.Lock()
 	defer p.Mutex.Unlock()
 
@@ -154,6 +137,7 @@ func (p *PeriklesHandler) addClientToPendingUpdates(hostName, clientName, kubeTy
 		SecretName:   secretName,
 		Validity:     validity,
 		IsHostUpdate: isHostUpdate,
+		Namespace:    namespace,
 	})
 }
 
@@ -210,7 +194,7 @@ func (p *PeriklesHandler) addClientToMapping(update MappingUpdate) error {
 						service.Clients = append(service.Clients, v1alpha.Client{
 							Name:      update.ClientName,
 							KubeType:  update.KubeType,
-							Namespace: p.Namespace,
+							Namespace: update.Namespace,
 						})
 					}
 				}

@@ -1,9 +1,13 @@
-package lawgiver
+package stoa
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/odysseia-greek/agora/aristoteles"
 	elasticmodels "github.com/odysseia-greek/agora/aristoteles/models"
@@ -14,11 +18,10 @@ import (
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/agora/plato/models"
 	kubernetes "github.com/odysseia-greek/agora/thales"
-	pb "github.com/odysseia-greek/attike/aristophanes/proto"
-	delphi "github.com/odysseia-greek/delphi/solon/models"
-	"net/http"
-	"strings"
-	"time"
+	arv1 "github.com/odysseia-greek/attike/aristophanes/gen/go/v1"
+	"github.com/odysseia-greek/delphi/solon/lawgiver"
+	"github.com/odysseia-greek/delphi/solon/lawgiver/limen"
+	"github.com/odysseia-greek/delphi/solon/logoi"
 )
 
 type SolonHandler struct {
@@ -26,20 +29,36 @@ type SolonHandler struct {
 	Elastic          aristoteles.Client
 	ElasticCert      []byte
 	Kube             *kubernetes.KubeClient
-	Namespaces       Namespaces
+	Namespaces       logoi.Namespaces
 	AccessAnnotation string
 	RoleAnnotation   string
 	TLSEnabled       bool
-	Streamer         pb.TraceService_ChorusClient
+	Streamer         arv1.TraceService_ChorusClient
 	Cancel           context.CancelFunc
+	limen            *limen.Client
+}
+
+func NewSolonHandler(cfg *lawgiver.Config) *SolonHandler {
+	return &SolonHandler{
+		Vault:            cfg.Vault,
+		Elastic:          cfg.Elastic,
+		ElasticCert:      cfg.ElasticCert,
+		Kube:             cfg.Kube,
+		Namespaces:       cfg.Namespaces,
+		AccessAnnotation: cfg.AccessAnnotation,
+		RoleAnnotation:   cfg.RoleAnnotation,
+		TLSEnabled:       cfg.TLSEnabled,
+		Streamer:         cfg.Streamer,
+		Cancel:           cfg.Cancel,
+		limen:            cfg.Limen,
+	}
 }
 
 func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
-	requestId := req.Header.Get(plato.HeaderKey)
-	w.Header().Set(plato.HeaderKey, requestId)
+	requestID := req.Header.Get(plato.HeaderKey)
+	w.Header().Set(plato.HeaderKey, requestID)
 
 	vaultHealth, _ := s.Vault.Health()
-
 	elasticHealth := s.Elastic.Health().Info()
 	dbHealth := models.DatabaseHealth{
 		Healthy:       elasticHealth.Healthy,
@@ -56,17 +75,12 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Request) {
-	pod, err := s.verifyRequestOriginIP(req.RemoteAddr)
+	pod, err := s.limenClient().VerifyRequestOriginIP(req.RemoteAddr)
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "verifying requestIP with a pod",
-					Message: err.Error(),
-				},
-			},
+			Messages:   []models.ValidationMessages{{Field: "verifying requestIP with a pod", Message: err.Error()}},
 		}
 		middleware.ResponseWithJson(w, e)
 		return
@@ -75,39 +89,22 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	if pod == nil {
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "listPods",
-					Message: "no pods could be found",
-				},
-			},
+			Messages:   []models.ValidationMessages{{Field: "listPods", Message: "no pods could be found"}},
 		}
 		middleware.ResponseWithJson(w, e)
 		return
 	}
 
-	// Define the policy name and Vault path
 	policyName := fmt.Sprintf("policy-%s", pod.Name)
 	podVaultPath := fmt.Sprintf("configs/data/%s", pod.Name)
-
-	// Define the policy rules
-	policyRules := fmt.Sprintf(`
-path "%s" {
-  capabilities = ["read", "list"]
-}
-`, podVaultPath)
+	policyRules := fmt.Sprintf("\npath \"%s\" {\n  capabilities = [\"read\", \"list\"]\n}\n", podVaultPath)
 
 	err = s.Vault.WritePolicy(policyName, []byte(policyRules))
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "creating policy",
-					Message: err.Error(),
-				},
-			},
+			Messages:   []models.ValidationMessages{{Field: "creating policy", Message: err.Error()}},
 		}
 		middleware.ResponseWithJson(w, e)
 		return
@@ -118,76 +115,55 @@ path "%s" {
 		logging.Error(err.Error())
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "getting token",
-					Message: err.Error(),
-				},
-			},
+			Messages:   []models.ValidationMessages{{Field: "getting token", Message: err.Error()}},
 		}
 		middleware.ResponseWithJson(w, e)
 		return
 	}
 
-	tokenModel := delphi.TokenResponse{
-		Token: token,
-	}
-
-	middleware.ResponseWithCustomCode(w, http.StatusOK, tokenModel)
+	middleware.ResponseWithCustomCode(w, http.StatusOK, logoi.TokenResponse{Token: token})
 }
 
 func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request) {
-	requestId := req.Header.Get(plato.HeaderKey)
-	w.Header().Set(plato.HeaderKey, requestId)
+	requestID := req.Header.Get(plato.HeaderKey)
+	w.Header().Set(plato.HeaderKey, requestID)
 
-	var creationRequest delphi.SolonCreationRequest
+	var creationRequest logoi.SolonCreationRequest
 	if err := json.NewDecoder(req.Body).Decode(&creationRequest); err != nil {
-		s.handleValidationError(w, "decoding", requestId, err)
+		s.handleValidationError(w, "decoding", requestID, err)
 		return
 	}
 
-	pod, err := s.verifyRequestOriginIP(req.RemoteAddr)
+	pod, err := s.limenClient().VerifyRequestOriginIP(req.RemoteAddr)
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "verifying requestIP with a pod",
-					Message: err.Error(),
-				},
-			},
+			Messages:   []models.ValidationMessages{{Field: "verifying requestIP with a pod", Message: err.Error()}},
 		}
 		middleware.ResponseWithJson(w, e)
 		return
 	}
 
 	if pod.Name != creationRequest.PodName {
-		// this error should go to slack or somewhere to see illegal actions
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "creationRequest.Podname",
-					Message: fmt.Sprintf("illegal action detected: %s requested but podname is %s", creationRequest.PodName, pod.Name),
-				},
-			},
+			Messages: []models.ValidationMessages{{
+				Field:   "creationRequest.Podname",
+				Message: fmt.Sprintf("illegal action detected: %s requested but podname is %s", creationRequest.PodName, pod.Name),
+			}},
 		}
 		middleware.ResponseWithJson(w, e)
 		return
 	}
 
-	validAnnotation := s.areValidAnnotations(pod.Annotations, &creationRequest)
-	if !validAnnotation {
-		// this error should go to slack or somewhere to see illegal actions
+	if !s.areValidAnnotations(pod.Annotations, &creationRequest) {
 		e := models.ValidationError{
 			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{
-				{
-					Field:   "annotations",
-					Message: fmt.Sprintf("illegal action detected: %s requested invalid annotations", pod.Name),
-				},
-			},
+			Messages: []models.ValidationMessages{{
+				Field:   "annotations",
+				Message: fmt.Sprintf("illegal action detected: %s requested invalid annotations", pod.Name),
+			}},
 		}
 		middleware.ResponseWithJson(w, e)
 		return
@@ -195,12 +171,11 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 
 	password, err := generator.RandomPassword(18)
 	if err != nil {
-		s.handleValidationError(w, "passwordgenerator", requestId, err)
+		s.handleValidationError(w, "passwordgenerator", requestID, err)
 		return
 	}
 
-	roleNames := s.generateRoleNames(&creationRequest)
-
+	roleNames := generateRoleNames(&creationRequest)
 	putUser := elasticmodels.CreateUserRequest{
 		Password: password,
 		Roles:    roleNames,
@@ -209,9 +184,12 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		Metadata: &elasticmodels.Metadata{Version: 1},
 	}
 
-	userCreated, err := s.Elastic.Access().CreateUser(creationRequest.Username, putUser)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	userCreated, err := s.Elastic.Access().CreateUserWithContext(ctx, creationRequest.Username, putUser)
 	if err != nil {
-		s.handleValidationError(w, "createUser", requestId, err)
+		s.handleValidationError(w, "createUser", requestID, err)
 		return
 	}
 
@@ -225,32 +203,28 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	}
 
 	payload, _ := createRequest.Marshal()
-
 	logging.Debug(fmt.Sprintf("created secret: %s", pod.Name))
 	secretCreated, err := s.Vault.CreateNewSecret(pod.Name, payload)
 	if err != nil {
-		s.handleValidationError(w, "createSecret", requestId, err)
+		s.handleValidationError(w, "createSecret", requestID, err)
 		return
 	}
 
-	response := models.SolonResponse{SecretCreated: secretCreated, UserCreated: userCreated}
-	middleware.ResponseWithCustomCode(w, http.StatusCreated, response)
+	middleware.ResponseWithCustomCode(w, http.StatusCreated, models.SolonResponse{
+		SecretCreated: secretCreated,
+		UserCreated:   userCreated,
+	})
 }
 
-func (s *SolonHandler) handleValidationError(w http.ResponseWriter, field, requestId string, err error) {
+func (s *SolonHandler) handleValidationError(w http.ResponseWriter, field, requestID string, err error) {
 	e := models.ValidationError{
-		ErrorModel: models.ErrorModel{UniqueCode: requestId},
-		Messages: []models.ValidationMessages{
-			{
-				Field:   field,
-				Message: err.Error(),
-			},
-		},
+		ErrorModel: models.ErrorModel{UniqueCode: requestID},
+		Messages:   []models.ValidationMessages{{Field: field, Message: err.Error()}},
 	}
 	middleware.ResponseWithJson(w, e)
 }
 
-func (s *SolonHandler) areValidAnnotations(annotations map[string]string, req *delphi.SolonCreationRequest) bool {
+func (s *SolonHandler) areValidAnnotations(annotations map[string]string, req *logoi.SolonCreationRequest) bool {
 	var validAccess bool
 	var validRole bool
 
@@ -271,7 +245,7 @@ func (s *SolonHandler) areValidAnnotations(annotations map[string]string, req *d
 	return validAccess && validRole
 }
 
-func (s *SolonHandler) generateRoleNames(req *delphi.SolonCreationRequest) []string {
+func generateRoleNames(req *logoi.SolonCreationRequest) []string {
 	var roleNames []string
 	for _, a := range req.Access {
 		roleName := fmt.Sprintf("%s_%s", a, req.Role)
@@ -287,4 +261,11 @@ func sliceContains(slice []string, str string) bool {
 		}
 	}
 	return false
+}
+
+func (s *SolonHandler) limenClient() *limen.Client {
+	if s.limen == nil {
+		s.limen = limen.NewClient(s.Kube, s.Namespaces, s.Elastic, s.Vault)
+	}
+	return s.limen
 }

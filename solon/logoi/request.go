@@ -1,4 +1,4 @@
-package models
+package logoi
 
 import "encoding/json"
 
@@ -12,7 +12,6 @@ func (r *SolonCreationRequest) Marshal() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-// swagger:model
 type SolonCreationRequest struct {
 	// example: api
 	// required: true

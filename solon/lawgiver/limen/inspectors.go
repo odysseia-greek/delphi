@@ -1,16 +1,22 @@
-package lawgiver
+package limen
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/odysseia-greek/agora/plato/logging"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"time"
 )
 
-func (s *SolonHandler) StartWatching() error {
-	clientset, err := kubernetes.NewForConfig(s.Kube.RestConfig())
+func (c *Client) StartWatching() error {
+	if c == nil || c.kubeClient == nil {
+		return fmt.Errorf("limen client is not initialized with a kube client")
+	}
+
+	clientset, err := kubernetes.NewForConfig(c.kubeClient.RestConfig())
 	if err != nil {
 		return err
 	}
@@ -20,7 +26,7 @@ func (s *SolonHandler) StartWatching() error {
 	podInformer := factory.Core().V1().Pods().Informer()
 
 	// Register event handlers
-	podInformer.AddEventHandler(s.handlePodEvents())
+	podInformer.AddEventHandler(c.handlePodEvents())
 
 	// Start informers
 	stopCh := make(chan struct{})
@@ -30,7 +36,7 @@ func (s *SolonHandler) StartWatching() error {
 	return nil
 }
 
-func (s *SolonHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
+func (c *Client) handlePodEvents() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			pod, ok := obj.(*v1.Pod)
@@ -40,11 +46,11 @@ func (s *SolonHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 			}
 
 			var inManagedNameSpace bool
-			if pod.Namespace == s.Namespaces.SolonNamespace {
+			if pod.Namespace == c.namespaces.SolonNamespace {
 				inManagedNameSpace = true
 			}
 
-			for _, ns := range s.Namespaces.WatchedNamespaces {
+			for _, ns := range c.namespaces.WatchedNamespaces {
 				if pod.Namespace == ns {
 					inManagedNameSpace = true
 					break
@@ -52,7 +58,7 @@ func (s *SolonHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 			}
 
 			if inManagedNameSpace {
-				err := s.deleteOrphans(pod)
+				err := c.deleteOrphans(pod)
 				if err != nil {
 					logging.Error(err.Error())
 				}

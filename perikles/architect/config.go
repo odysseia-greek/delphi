@@ -4,15 +4,12 @@ import (
 	"github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/thales"
-	"github.com/odysseia-greek/agora/thales/odysseia"
+	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping"
+
 	"os"
 	"strings"
 	"sync"
 	"time"
-)
-
-const (
-	ORGANISATION string = "odysseia-greek"
 )
 
 type MappingUpdate struct {
@@ -20,6 +17,7 @@ type MappingUpdate struct {
 	ClientName   string
 	KubeType     string
 	SecretName   string
+	Namespace    string
 	Validity     int
 	IsHostUpdate bool
 }
@@ -35,16 +33,7 @@ func CreateNewConfig() (*PeriklesHandler, error) {
 		return nil, err
 	}
 
-	org := []string{
-		ORGANISATION,
-	}
-
-	cert, err := config.CreateCertClient(org)
-	if err != nil {
-		return nil, err
-	}
-
-	mapping, err := odysseia.NewServiceMappingImpl(kube.RestConfig())
+	mapping, err := service_mapping.NewServiceMappingImpl(kube.RestConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +65,6 @@ func CreateNewConfig() (*PeriklesHandler, error) {
 		Kube:               kube,
 		CiliumClient:       ciliumClient,
 		Mapping:            mapping,
-		Cert:               cert,
 		Namespace:          ns,
 		CrdName:            crd,
 		TLSFiles:           tlsFiles,

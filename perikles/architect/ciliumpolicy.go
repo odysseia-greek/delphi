@@ -3,25 +3,26 @@ package architect
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	ciliumv2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
 	slimmetav1 "github.com/cilium/cilium/pkg/k8s/slim/k8s/apis/meta/v1"
 	"github.com/cilium/cilium/pkg/policy/api"
-	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v2 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
-	"strings"
-	"time"
 )
 
-func (p *PeriklesHandler) generateVaultNetworkPolicy(name, namespace string) error {
+func (p *PeriklesHandler) generateVaultNetworkPolicy(name, srcAppName, namespace string) error {
 	newAnnotation := make(map[string]string)
 	newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)
 	newAnnotation[IgnoreInGitOps] = "true"
 
+	logging.Debug(fmt.Sprintf("adding vault policy for %s with app: %s in ns: %s", name, srcAppName, namespace))
 	vaultPolicy := ciliumv2.CiliumNetworkPolicy{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "CiliumNetworkPolicy",
@@ -46,7 +47,7 @@ func (p *PeriklesHandler) generateVaultNetworkPolicy(name, namespace string) err
 						FromEndpoints: []api.EndpointSelector{
 							{
 								LabelSelector: &slimmetav1.LabelSelector{
-									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name, "io.kubernetes.pod.namespace": namespace},
+									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": srcAppName, "io.kubernetes.pod.namespace": namespace},
 								},
 							},
 						},
@@ -72,7 +73,7 @@ func (p *PeriklesHandler) generateVaultNetworkPolicy(name, namespace string) err
 
 	return nil
 }
-func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace, hostsAnnotation string, containers []v2.Container) {
+func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace, hostsAnnotation, kubeType string, containers []v2.Container) {
 	newAnnotation := make(map[string]string)
 	newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)
 	newAnnotation[IgnoreInGitOps] = "true"
@@ -84,10 +85,17 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 		hosts = []string{hostsAnnotation}
 	}
 
+	srcAppName, err := p.resolveAppSelectorName(name, namespace, kubeType)
+	if err != nil {
+		logging.Error(err.Error())
+		return
+	}
+
+	if name != srcAppName {
+		logging.Debug(fmt.Sprintf("label name %s does not match name %s so using label name %s instead", name, srcAppName, name))
+	}
+
 	for _, host := range hosts {
-		if host == "aristarchos" {
-			logging.Debug(fmt.Sprintf("host %s is aristarchos so skipping np", host))
-		}
 		ports, hostNamespace, err := p.findServicePortsForDeployment(host)
 		if err != nil {
 			logging.Error(err.Error())
@@ -128,7 +136,7 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 							FromEndpoints: []api.EndpointSelector{
 								{
 									LabelSelector: &slimmetav1.LabelSelector{
-										MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name,
+										MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": srcAppName,
 											"io.kubernetes.pod.namespace": namespace},
 									},
 								},
@@ -153,7 +161,7 @@ func (p *PeriklesHandler) generateServiceToServiceNetworkPolicy(name, namespace,
 	for _, container := range containers {
 		if container.Name == "aristides" {
 			logging.Debug(fmt.Sprintf("container found in deploy %s that requires vault access so adding np", name))
-			err := p.generateVaultNetworkPolicy(name, namespace)
+			err := p.generateVaultNetworkPolicy(name, srcAppName, namespace)
 			if err != nil {
 				logging.Error(err.Error())
 			}
@@ -167,8 +175,7 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 	newAnnotation[AnnotationUpdate] = time.Now().UTC().Format(timeFormat)
 	newAnnotation[IgnoreInGitOps] = "true"
 
-	var name, namespace string
-	var initContainers, containers []v2.Container
+	var name, namespace, kubeType string
 
 	if deploy == nil && job == nil {
 		return nil
@@ -177,15 +184,23 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 	if deploy != nil {
 		name = deploy.Name
 		namespace = deploy.Namespace
-		initContainers = deploy.Spec.Template.Spec.InitContainers
-		containers = deploy.Spec.Template.Spec.Containers
+		kubeType = "deployment"
 	}
 
 	if job != nil {
 		name = job.Name
 		namespace = job.Namespace
-		initContainers = job.Spec.Template.Spec.InitContainers
-		containers = job.Spec.Template.Spec.Containers
+		kubeType = "job"
+	}
+
+	srcAppName, err := p.resolveAppSelectorName(name, namespace, kubeType)
+	if err != nil {
+		logging.Error(err.Error())
+		return nil
+	}
+
+	if name != srcAppName {
+		logging.Debug(fmt.Sprintf("label name %s does not match name %s so using label name %s instead", name, srcAppName, name))
 	}
 
 	// Define the CiliumNetworkPolicy
@@ -213,7 +228,7 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 						FromEndpoints: []api.EndpointSelector{
 							{
 								LabelSelector: &slimmetav1.LabelSelector{
-									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": name,
+									MatchLabels: map[string]slimmetav1.MatchLabelsValue{"app": srcAppName,
 										"io.kubernetes.pod.namespace": namespace},
 								},
 							},
@@ -252,12 +267,6 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 			}
 		}
 
-		additionalPolicies := p.determineSideCars(containers, initContainers)
-
-		for _, rule := range additionalPolicies {
-			rules = append(rules, rule)
-		}
-
 		policy.Spec.Ingress[0].ToPorts[0].Rules = &api.L7Rules{
 			HTTP: rules,
 		}
@@ -283,45 +292,6 @@ func (p *PeriklesHandler) getHTTPRulesForRoleWithRegex(role, index string) []api
 	healthEndpoint := api.PortRuleHTTP{Method: "^GET$", Path: "^/$"}
 	rules = append(rules, healthEndpoint)
 
-	return rules
-}
-
-func (p *PeriklesHandler) determineSideCars(containers []v2.Container, init []v2.Container) []api.PortRuleHTTP {
-	var rules []api.PortRuleHTTP
-
-	for _, initContainer := range init {
-		if strings.Contains(initContainer.Name, "periandros") {
-		}
-	}
-
-	for _, container := range containers {
-		if strings.Contains(container.Name, "aristophanes") {
-			// Update existing document in the aliased index
-			rules = append(rules, api.PortRuleHTTP{
-				Method: "^POST$",
-				Path:   fmt.Sprintf("^/%s/_update/.*$", config.TracingElasticIndex), // Direct alias update
-			})
-			rules = append(rules, api.PortRuleHTTP{
-				Method: "^POST$",
-				Path:   fmt.Sprintf("^/%s-.*/_update/.*$", config.TracingElasticIndex), // Dynamic indices behind the alias
-			})
-
-			// Create a new document in the aliased index
-			rules = append(rules, api.PortRuleHTTP{
-				Method: "^PUT$",
-				Path:   fmt.Sprintf("^/%s$", config.TracingElasticIndex), // Alias itself
-			})
-			rules = append(rules, api.PortRuleHTTP{
-				Method: "^PUT$",
-				Path:   fmt.Sprintf("^/%s/.*$", config.TracingElasticIndex), // Documents in the alias
-			})
-			rules = append(rules, api.PortRuleHTTP{
-				Method: "^PUT$",
-				Path:   fmt.Sprintf("^/%s-.*/.*$", config.TracingElasticIndex), // Dynamic indices behind the alias
-			})
-		}
-
-	}
 	return rules
 }
 
@@ -393,6 +363,38 @@ func (p *PeriklesHandler) getServicePortsFromDeployment(deployment *v1.Deploymen
 	}
 
 	return nil, fmt.Errorf("no service found for deployment %s", deployment.Name)
+}
+
+func (p *PeriklesHandler) resolveAppSelectorName(objName, namespace, kubeType string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	var labels map[string]string
+
+	switch kubeType {
+	case "deployment":
+		deploy, err := p.Kube.AppsV1().Deployments(namespace).Get(ctx, objName, metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		}
+		labels = deploy.Labels
+
+	case "job":
+		job, err := p.Kube.BatchV1().Jobs(namespace).Get(ctx, objName, metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		}
+		labels = job.Labels
+
+	default:
+		return "", fmt.Errorf("unsupported kubeType %q", kubeType)
+	}
+
+	if app, ok := labels["app"]; ok && app != "" {
+		return app, nil
+	}
+
+	return objName, nil
 }
 
 // Helper function to check if a Service selector matches Deployment labels

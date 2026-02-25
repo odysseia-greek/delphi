@@ -2,13 +2,14 @@ package architect
 
 import (
 	"context"
-	"github.com/odysseia-greek/agora/plato/certificates"
-	kubernetes "github.com/odysseia-greek/agora/thales"
-	"github.com/odysseia-greek/agora/thales/odysseia"
-	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
+
+	"github.com/odysseia-greek/agora/plato/certificates"
+	kubernetes "github.com/odysseia-greek/agora/thales"
+	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func setupTestEnvironment() (*PeriklesHandler, string, string, string, string, string) {
@@ -20,11 +21,10 @@ func setupTestEnvironment() (*PeriklesHandler, string, string, string, string, s
 	_ = cert.InitCa()
 
 	fakeKube := kubernetes.NewFakeKubeClient()
-	mapping, _ := odysseia.NewFakeServiceMappingImpl()
+	mapping, _ := service_mapping.NewFakeServiceMappingImpl()
 
 	handler := &PeriklesHandler{
 		Kube:      fakeKube,
-		Cert:      cert,
 		Namespace: ns,
 		CrdName:   "test",
 		Mapping:   mapping,

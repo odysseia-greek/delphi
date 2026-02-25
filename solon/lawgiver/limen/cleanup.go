@@ -1,26 +1,34 @@
-package lawgiver
+package limen
 
 import (
+	"context"
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/odysseia-greek/agora/aristoteles"
+	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/logging"
 	v1 "k8s.io/api/core/v1"
-	"strings"
 )
 
-func (s *SolonHandler) deleteOrphans(pod *v1.Pod) error {
+func DeleteOrphans(elastic aristoteles.Client, vault diogenes.Client, pod *v1.Pod) error {
 	// Identify orphaned Elastic users
 	numberOfCleanedResource := 0
 
 	splitPodName := strings.Split(pod.Name, "-")
 	var username string
-	//this logic is from periandros because elastic does not accept hyphem in a username
+	//this logic is from periandros because elastic does not accept hyphen in a username
 	if len(splitPodName) > 1 {
 		username = splitPodName[0] + splitPodName[len(splitPodName)-1]
 	} else {
 		username = splitPodName[0]
 	}
 
-	_, err := s.Elastic.Access().DeleteUser(username)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := elastic.Access().DeleteUserWithContext(ctx, username)
 	if err != nil {
 		logging.Error(fmt.Sprintf("failed to delete orphaned user: %s, %s", username, err.Error()))
 	} else {
@@ -28,12 +36,12 @@ func (s *SolonHandler) deleteOrphans(pod *v1.Pod) error {
 		numberOfCleanedResource++
 	}
 
-	err = s.Vault.DeleteSecret(pod.Name)
+	err = vault.DeleteSecret(pod.Name)
 	if err != nil {
 		logging.Error(fmt.Sprintf("failed to delete orphaned secret: %s, %s", pod.Name, err.Error()))
 	}
 
-	err = s.Vault.RemoveSecret(pod.Name)
+	err = vault.RemoveSecret(pod.Name)
 	if err != nil {
 		logging.Error(fmt.Sprintf("failed to remove orphaned secret: %s, %s", pod.Name, err.Error()))
 	} else {
@@ -43,7 +51,7 @@ func (s *SolonHandler) deleteOrphans(pod *v1.Pod) error {
 
 	policy := fmt.Sprintf("policy-%s", pod.Name)
 
-	deletedPolicy, err := s.Vault.DeletePolicy(policy)
+	deletedPolicy, err := vault.DeletePolicy(policy)
 	if err != nil || deletedPolicy != nil {
 		logging.Error(fmt.Sprintf("failed to delete orphaned policy: %s, %s", policy, err.Error()))
 	} else {

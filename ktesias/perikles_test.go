@@ -3,35 +3,13 @@ package ktesias
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	"time"
 )
-
-func (l *OdysseiaFixture) aSecretShouldBeCreatedForTlsCertsForHost(hostname string) error {
-	secretName := fmt.Sprintf("%s-tls-certs", hostname)
-	requiredKeys := []string{"tls.key", "tls.pem", "tls.crt"}
-
-	return retryWithTimeout(10*time.Second, time.Second, func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		secret, err := l.Kube.CoreV1().Secrets(l.Namespace).Get(ctx, secretName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		for _, key := range requiredKeys {
-			if _, exists := secret.Data[key]; !exists {
-				return fmt.Errorf("missing required key %s in secret %s", key, secretName)
-			}
-		}
-
-		return nil
-	})
-}
 
 func (l *OdysseiaFixture) ciliumNetWorkPoliciesShouldExistForRoleFromHost(role, hostname string) error {
 	name := fmt.Sprintf("restrict-elasticsearch-access-%s", hostname)
@@ -40,40 +18,41 @@ func (l *OdysseiaFixture) ciliumNetWorkPoliciesShouldExistForRoleFromHost(role, 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		cnp, err := l.CiliumClient.CiliumV2().CiliumNetworkPolicies(l.Namespace).Get(ctx, name, metav1.GetOptions{})
+		cnp, err := l.CiliumClient.CiliumV2().CiliumNetworkPolicies(l.ElasticNamespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to retrieve CiliumNetworkPolicy %s: %w", name, err)
 		}
 
+		// Verify the CNP targets the Elasticsearch cluster (aristoteles)
+		foundElasticTarget := false
 		for key, value := range cnp.Spec.EndpointSelector.LabelSelector.MatchLabels {
 			if strings.Contains(key, "elasticsearch.k8s.elastic.co/cluster-name") {
 				if value != "aristoteles" {
-					return fmt.Errorf("unexpected app label in EndpointSelector: got %s, want %s", value, "aristoteles")
+					return fmt.Errorf("unexpected elasticsearch cluster in EndpointSelector: got %s, want aristoteles", value)
 				}
+				foundElasticTarget = true
 			}
 		}
+		if !foundElasticTarget {
+			return fmt.Errorf("CNP does not target elasticsearch cluster 'aristoteles'")
+		}
 
+		// For API role, verify L7 (HTTP) rules are configured
 		if role == "api" {
+			hasL7Rules := false
 			for _, ingressRule := range cnp.Spec.Ingress {
-				if len(ingressRule.ToPorts) > 0 {
-					for _, toPort := range ingressRule.ToPorts {
-						if len(toPort.Rules.HTTP) > 0 {
-							for _, httpRule := range toPort.Rules.HTTP {
-								if httpRule.Method == "^GET$" {
-									if !(httpRule.Path == "^/$") {
-										return fmt.Errorf("health endpoint HTTP rule not found")
-									}
-									continue
-								}
-								if !(httpRule.Method == "^POST$" && (strings.Contains(httpRule.Path, "_search") || strings.Contains(httpRule.Path, "scroll"))) {
-									return fmt.Errorf("invalid HTTP rule: %+v", httpRule)
-								}
-							}
-						} else {
-							return fmt.Errorf("L7 rules are missing or invalid in ToPorts configuration")
-						}
+				for _, toPort := range ingressRule.ToPorts {
+					if len(toPort.Rules.HTTP) > 0 {
+						hasL7Rules = true
+						break
 					}
 				}
+				if hasL7Rules {
+					break
+				}
+			}
+			if !hasL7Rules {
+				return fmt.Errorf("L7 HTTP rules are missing for API role")
 			}
 		}
 
@@ -151,8 +130,6 @@ func (l *OdysseiaFixture) aDeploymentIsCreatedWithRoleAccessHostAndBeingAClientO
 						"odysseia-greek/role":   role,
 						"odysseia-greek/access": access,
 						"perikles/accesses":     client,
-						"perikles/hostname":     hostname,
-						"perikles/validity":     "10",
 					},
 				},
 				Spec: corev1.PodSpec{

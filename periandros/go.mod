@@ -1,11 +1,11 @@
 module github.com/odysseia-greek/delphi/periandros
 
-go 1.24
+go 1.25.5
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/odysseia-greek/agora/plato v0.2.10
-	github.com/stretchr/testify v1.10.0
+	github.com/odysseia-greek/agora/plato v0.2.16
+	github.com/stretchr/testify v1.11.1
 )
 
 require (

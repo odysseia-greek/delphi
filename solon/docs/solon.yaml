@@ -737,7 +737,7 @@ components:
           type: string
           example: s.0982371293fj
           x-go-name: Token
-      x-go-package: github.com/odysseia-greek/delphi/solon/models
+      x-go-package: github.com/odysseia-greek/delphi/solon/logoi
     ValidationError:
       required:
       - uniqueCode

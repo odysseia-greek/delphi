@@ -3,39 +3,41 @@ package architect
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/agora/thales/crd/v1alpha"
+	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping/crd/v1alpha"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	"time"
 )
 
 func (p *PeriklesHandler) cleanUpNetWorkPolicies(serviceToRemove, ns string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// List all network policies in the namespace
-	nwps, err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(ns).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list network policies: %w", err)
-	}
-
-	// Iterate through the list and delete policies that match the service name
-	for _, nwp := range nwps.Items {
-		if strings.Contains(nwp.Name, "allow-all") {
-			continue
+	allNamespaces := append([]string{p.Namespace}, p.WatchedNamespaces...)
+	for _, namespace := range allNamespaces {
+		nwpInWatchedNs, err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to list network policies in %s namespace: %w", namespace, err)
 		}
-		if strings.Contains(nwp.Name, fmt.Sprintf("allow-%s-access", serviceToRemove)) || strings.Contains(nwp.Name, fmt.Sprintf("elasticsearch-access-%s", serviceToRemove)) {
-			// Delete the matching network policy
-			err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(ns).Delete(ctx, nwp.Name, metav1.DeleteOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to delete network policy %s: %w", nwp.Name, err)
+
+		for _, nwp := range nwpInWatchedNs.Items {
+			if strings.Contains(nwp.Name, "allow-all") {
+				continue
 			}
-			logging.Debug(fmt.Sprintf("Deleted network policy: %s", nwp.Name))
+
+			if strings.Contains(nwp.Name, fmt.Sprintf("allow-%s-access", serviceToRemove)) {
+				err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(namespace).Delete(ctx, nwp.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to delete network policy %s: %w", nwp.Name, err)
+				}
+				logging.Debug(fmt.Sprintf("Deleted network policy: %s in ns: %s", nwp.Name, namespace))
+			}
 		}
 	}
 

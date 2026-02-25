@@ -1,23 +1,25 @@
-package lawgiver
+package stoa
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	uuid2 "github.com/google/uuid"
-	elastic "github.com/odysseia-greek/agora/aristoteles"
-	vault "github.com/odysseia-greek/agora/diogenes"
-	"github.com/odysseia-greek/agora/plato/models"
-	"github.com/odysseia-greek/agora/plato/service"
-	kubernetes "github.com/odysseia-greek/agora/thales"
-	delphi "github.com/odysseia-greek/delphi/solon/models"
-	"github.com/stretchr/testify/assert"
 	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	uuid2 "github.com/google/uuid"
+	elastic "github.com/odysseia-greek/agora/aristoteles"
+	vault "github.com/odysseia-greek/agora/diogenes"
+	"github.com/odysseia-greek/agora/plato/config"
+	"github.com/odysseia-greek/agora/plato/models"
+	"github.com/odysseia-greek/agora/plato/service"
+	kubernetes "github.com/odysseia-greek/agora/thales"
+	"github.com/odysseia-greek/delphi/solon/logoi"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestHealth(t *testing.T) {
@@ -48,14 +50,15 @@ func TestHealth(t *testing.T) {
 
 func TestRegister(t *testing.T) {
 	access := "everywhere"
-	creationRequest := delphi.SolonCreationRequest{
+	creationRequest := logoi.SolonCreationRequest{
 		Role:     "theonethatquestions",
 		Access:   []string{access},
 		PodName:  "somepodname-122",
 		Username: "sokrates",
 	}
 
-	ns := "test"
+	var namespaces logoi.Namespaces
+	namespaces.SolonNamespace = config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
 
 	t.Run("HappyPath", func(t *testing.T) {
 		fixtureFile := "createUser"
@@ -71,12 +74,12 @@ func TestRegister(t *testing.T) {
 			Elastic:          mockElasticClient,
 			Vault:            mockVaultClient,
 			Kube:             mockKube,
-			Namespace:        ns,
+			Namespaces:       namespaces,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
 
-		err = createPodForTest(creationRequest.PodName, ns, access, creationRequest.Role, mockKube)
+		err = createPodForTest(creationRequest.PodName, namespaces.SolonNamespace, access, creationRequest.Role, mockKube)
 		assert.Nil(t, err)
 
 		jsonBody, err := creationRequest.Marshal()
@@ -105,14 +108,14 @@ func TestRegister(t *testing.T) {
 			Elastic:          mockElasticClient,
 			Vault:            nil,
 			Kube:             mockKube,
-			Namespace:        ns,
+			Namespaces:       namespaces,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
 
 		differentRole := "nottheroleyouarelookingfor"
 
-		err = createPodForTest(creationRequest.PodName, ns, access, differentRole, mockKube)
+		err = createPodForTest(creationRequest.PodName, namespaces.SolonNamespace, access, differentRole, mockKube)
 		assert.Nil(t, err)
 
 		jsonBody, err := creationRequest.Marshal()
@@ -141,14 +144,14 @@ func TestRegister(t *testing.T) {
 			Elastic:          mockElasticClient,
 			Vault:            nil,
 			Kube:             mockKube,
-			Namespace:        ns,
+			Namespaces:       namespaces,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
 
 		differentAccess := "nottheroleyouarelookingfor"
 
-		err = createPodForTest(creationRequest.PodName, ns, differentAccess, creationRequest.Role, mockKube)
+		err = createPodForTest(creationRequest.PodName, namespaces.SolonNamespace, differentAccess, creationRequest.Role, mockKube)
 		assert.Nil(t, err)
 
 		jsonBody, err := creationRequest.Marshal()
@@ -177,12 +180,12 @@ func TestRegister(t *testing.T) {
 			Elastic:          mockElasticClient,
 			Vault:            nil,
 			Kube:             mockKube,
-			Namespace:        ns,
+			Namespaces:       namespaces,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
 
-		err = createPodForTest(creationRequest.PodName, ns, access, creationRequest.Role, mockKube)
+		err = createPodForTest(creationRequest.PodName, namespaces.SolonNamespace, access, creationRequest.Role, mockKube)
 		assert.Nil(t, err)
 
 		jsonBody, err := creationRequest.Marshal()
@@ -214,12 +217,12 @@ func TestRegister(t *testing.T) {
 			Elastic:          mockElasticClient,
 			Kube:             mockKube,
 			Vault:            vaultClient,
-			Namespace:        ns,
+			Namespaces:       namespaces,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
 
-		err = createPodForTest(creationRequest.PodName, ns, access, creationRequest.Role, mockKube)
+		err = createPodForTest(creationRequest.PodName, namespaces.SolonNamespace, access, creationRequest.Role, mockKube)
 		assert.Nil(t, err)
 
 		jsonBody, err := creationRequest.Marshal()
