@@ -1,4 +1,4 @@
-package stoa
+package dokime
 
 import (
 	"bytes"
@@ -17,7 +17,12 @@ import (
 	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/agora/plato/service"
 	kubernetes "github.com/odysseia-greek/agora/thales"
+	"github.com/odysseia-greek/delphi/solon/lawgiver"
+	limenelastic "github.com/odysseia-greek/delphi/solon/limen/elastic"
+	limenkubernetes "github.com/odysseia-greek/delphi/solon/limen/kubernetes"
+	limenvault "github.com/odysseia-greek/delphi/solon/limen/vault"
 	"github.com/odysseia-greek/delphi/solon/logoi"
+	"github.com/odysseia-greek/delphi/solon/stoa"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,12 +37,12 @@ func TestHealth(t *testing.T) {
 		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
 		assert.Nil(t, err)
 
-		testConfig := &SolonHandler{
-			Elastic: mockElasticClient,
-			Vault:   mockVaultClient,
+		testConfig := &lawgiver.SolonHandler{
+			Elastic: limenelastic.NewClient(mockElasticClient),
+			Vault:   limenvault.NewClient(mockVaultClient),
 		}
 
-		router := InitRoutes(testConfig)
+		router := stoa.InitRoutes(testConfig)
 		response := performGetRequest(router, "/solon/v1/health")
 
 		var healthModel models.Health
@@ -70,11 +75,10 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		mockKube := kubernetes.NewFakeKubeClient()
 
-		testConfig := &SolonHandler{
-			Elastic:          mockElasticClient,
-			Vault:            mockVaultClient,
-			Kube:             mockKube,
-			Namespaces:       namespaces,
+		testConfig := &lawgiver.SolonHandler{
+			Elastic:          limenelastic.NewClient(mockElasticClient),
+			Vault:            limenvault.NewClient(mockVaultClient),
+			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -86,7 +90,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := stoa.InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.SolonResponse
@@ -104,11 +108,10 @@ func TestRegister(t *testing.T) {
 		mockKube := kubernetes.NewFakeKubeClient()
 		assert.Nil(t, err)
 
-		testConfig := &SolonHandler{
-			Elastic:          mockElasticClient,
-			Vault:            nil,
-			Kube:             mockKube,
-			Namespaces:       namespaces,
+		testConfig := &lawgiver.SolonHandler{
+			Elastic:          limenelastic.NewClient(mockElasticClient),
+			Vault:            limenvault.NewClient(nil),
+			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -122,7 +125,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := stoa.InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -140,11 +143,10 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		mockKube := kubernetes.NewFakeKubeClient()
 
-		testConfig := &SolonHandler{
-			Elastic:          mockElasticClient,
-			Vault:            nil,
-			Kube:             mockKube,
-			Namespaces:       namespaces,
+		testConfig := &lawgiver.SolonHandler{
+			Elastic:          limenelastic.NewClient(mockElasticClient),
+			Vault:            limenvault.NewClient(nil),
+			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -158,7 +160,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := stoa.InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -176,11 +178,10 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		mockKube := kubernetes.NewFakeKubeClient()
 
-		testConfig := &SolonHandler{
-			Elastic:          mockElasticClient,
-			Vault:            nil,
-			Kube:             mockKube,
-			Namespaces:       namespaces,
+		testConfig := &lawgiver.SolonHandler{
+			Elastic:          limenelastic.NewClient(mockElasticClient),
+			Vault:            limenvault.NewClient(nil),
+			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -192,7 +193,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := stoa.InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError
@@ -213,11 +214,10 @@ func TestRegister(t *testing.T) {
 		vaultClient, err := vault.NewVaultClient("localhost:239riwefj", "token", nil)
 		assert.Nil(t, err)
 
-		testConfig := &SolonHandler{
-			Elastic:          mockElasticClient,
-			Kube:             mockKube,
-			Vault:            vaultClient,
-			Namespaces:       namespaces,
+		testConfig := &lawgiver.SolonHandler{
+			Elastic:          limenelastic.NewClient(mockElasticClient),
+			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
+			Vault:            limenvault.NewClient(vaultClient),
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -229,7 +229,7 @@ func TestRegister(t *testing.T) {
 		assert.Nil(t, err)
 		bodyInBytes := bytes.NewReader(jsonBody)
 
-		router := InitRoutes(testConfig)
+		router := stoa.InitRoutes(testConfig)
 		response := performPostRequest(router, "/solon/v1/register", bodyInBytes)
 
 		var sut models.ValidationError

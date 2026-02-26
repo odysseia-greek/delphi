@@ -1,4 +1,4 @@
-package limen
+package kubernetes
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/odysseia-greek/agora/plato/logging"
-	kubernetes "github.com/odysseia-greek/agora/thales"
-	"github.com/odysseia-greek/delphi/solon/logoi"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -17,11 +15,6 @@ func (c *Client) VerifyRequestOriginIP(requestIP string) (*v1.Pod, error) {
 	if c == nil || c.kubeClient == nil {
 		return nil, fmt.Errorf("limen client is not initialized with a kube client")
 	}
-
-	return VerifyRequestOriginIP(c.kubeClient, c.namespaces, requestIP)
-}
-
-func VerifyRequestOriginIP(kubeClient *kubernetes.KubeClient, namespaces logoi.Namespaces, requestIP string) (*v1.Pod, error) {
 	var strippedRequestIP string
 
 	if strings.Contains(requestIP, ":") {
@@ -34,7 +27,7 @@ func VerifyRequestOriginIP(kubeClient *kubernetes.KubeClient, namespaces logoi.N
 	defer cancel()
 
 	// First check in Solon's own namespace
-	pods, err := kubeClient.CoreV1().Pods(namespaces.SolonNamespace).List(ctx, metav1.ListOptions{})
+	pods, err := c.kubeClient.CoreV1().Pods(c.namespaces.SolonNamespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pods in Solon namespace: %w", err)
 	}
@@ -47,8 +40,8 @@ func VerifyRequestOriginIP(kubeClient *kubernetes.KubeClient, namespaces logoi.N
 	}
 
 	// If not found in Solon's namespace, check all watched namespaces
-	for _, namespace := range namespaces.WatchedNamespaces {
-		pods, err := kubeClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	for _, namespace := range c.namespaces.WatchedNamespaces {
+		pods, err := c.kubeClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			// Log the error but continue with other namespaces
 			logging.Debug(fmt.Sprintf("failed to list pods in namespace %s: %v", namespace, err))

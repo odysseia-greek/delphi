@@ -4,10 +4,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/attike/aristophanes/comedy"
+	"github.com/odysseia-greek/delphi/solon/lawgiver"
 )
 
 // InitRoutes to start up a mux router and return the routes
-func InitRoutes(solonHandler *SolonHandler) *mux.Router {
+func InitRoutes(solonHandler *lawgiver.SolonHandler) *mux.Router {
 	serveMux := mux.NewRouter()
 
 	serveMux.HandleFunc("/solon/v1/health", middleware.Adapt(solonHandler.Health, middleware.ValidateRestMethod("GET")))

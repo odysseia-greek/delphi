@@ -12,22 +12,24 @@ import (
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	aristophanes "github.com/odysseia-greek/attike/aristophanes/comedy"
 	arv1 "github.com/odysseia-greek/attike/aristophanes/gen/go/v1"
-	"github.com/odysseia-greek/delphi/solon/lawgiver/limen"
+	limencleanup "github.com/odysseia-greek/delphi/solon/limen/cleanup"
+	limenelastic "github.com/odysseia-greek/delphi/solon/limen/elastic"
+	limenkubernetes "github.com/odysseia-greek/delphi/solon/limen/kubernetes"
+	limenvault "github.com/odysseia-greek/delphi/solon/limen/vault"
 	"github.com/odysseia-greek/delphi/solon/logoi"
 )
 
 type Config struct {
-	Vault            diogenes.Client
-	Elastic          aristoteles.Client
 	ElasticCert      []byte
-	Kube             *kubernetes.KubeClient
-	Namespaces       logoi.Namespaces
 	AccessAnnotation string
 	RoleAnnotation   string
 	TLSEnabled       bool
 	Streamer         arv1.TraceService_ChorusClient
 	Cancel           context.CancelFunc
-	Limen            *limen.Client
+	ElasticLimen     *limenelastic.Client
+	VaultLimen       *limenvault.Client
+	KubernetesLimen  *limenkubernetes.Client
+	CleanupLimen     *limencleanup.Client
 }
 
 func CreateNewConfig(ctx context.Context) (*Config, error) {
@@ -78,17 +80,20 @@ func CreateNewConfig(ctx context.Context) (*Config, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 
+	elasticLimen := limenelastic.NewClient(elastic)
+	vaultLimen := limenvault.NewClient(vault)
+	cleanupLimen := limencleanup.NewClient(elasticLimen, vaultLimen)
+
 	return &Config{
-		Vault:            vault,
-		Elastic:          elastic,
 		ElasticCert:      []byte(cert),
-		Kube:             kube,
-		Namespaces:       namespaces,
 		AccessAnnotation: config.DefaultAccessAnnotation,
 		RoleAnnotation:   config.DefaultRoleAnnotation,
 		TLSEnabled:       tls,
 		Streamer:         streamer,
 		Cancel:           cancel,
-		Limen:            limen.NewClient(kube, namespaces, elastic, vault),
+		ElasticLimen:     elasticLimen,
+		VaultLimen:       vaultLimen,
+		KubernetesLimen:  limenkubernetes.NewClient(kube, namespaces, cleanupLimen),
+		CleanupLimen:     cleanupLimen,
 	}, nil
 }

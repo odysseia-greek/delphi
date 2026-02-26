@@ -1,4 +1,4 @@
-package stoa
+package lawgiver
 
 import (
 	"context"
@@ -9,48 +9,41 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/odysseia-greek/agora/aristoteles"
-	elasticmodels "github.com/odysseia-greek/agora/aristoteles/models"
-	"github.com/odysseia-greek/agora/diogenes"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/generator"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/middleware"
 	"github.com/odysseia-greek/agora/plato/models"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 	arv1 "github.com/odysseia-greek/attike/aristophanes/gen/go/v1"
-	"github.com/odysseia-greek/delphi/solon/lawgiver"
-	"github.com/odysseia-greek/delphi/solon/lawgiver/limen"
+	limenelastic "github.com/odysseia-greek/delphi/solon/limen/elastic"
+	limenkubernetes "github.com/odysseia-greek/delphi/solon/limen/kubernetes"
+	limenvault "github.com/odysseia-greek/delphi/solon/limen/vault"
 	"github.com/odysseia-greek/delphi/solon/logoi"
 )
 
 type SolonHandler struct {
-	Vault            diogenes.Client
-	Elastic          aristoteles.Client
+	Vault            *limenvault.Client
+	Elastic          *limenelastic.Client
+	Kubernetes       *limenkubernetes.Client
 	ElasticCert      []byte
-	Kube             *kubernetes.KubeClient
-	Namespaces       logoi.Namespaces
 	AccessAnnotation string
 	RoleAnnotation   string
 	TLSEnabled       bool
 	Streamer         arv1.TraceService_ChorusClient
 	Cancel           context.CancelFunc
-	limen            *limen.Client
 }
 
-func NewSolonHandler(cfg *lawgiver.Config) *SolonHandler {
+func NewSolonHandler(cfg *Config) *SolonHandler {
 	return &SolonHandler{
-		Vault:            cfg.Vault,
-		Elastic:          cfg.Elastic,
+		Vault:            cfg.VaultLimen,
+		Elastic:          cfg.ElasticLimen,
+		Kubernetes:       cfg.KubernetesLimen,
 		ElasticCert:      cfg.ElasticCert,
-		Kube:             cfg.Kube,
-		Namespaces:       cfg.Namespaces,
 		AccessAnnotation: cfg.AccessAnnotation,
 		RoleAnnotation:   cfg.RoleAnnotation,
 		TLSEnabled:       cfg.TLSEnabled,
 		Streamer:         cfg.Streamer,
 		Cancel:           cfg.Cancel,
-		limen:            cfg.Limen,
 	}
 }
 
@@ -59,7 +52,7 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set(plato.HeaderKey, requestID)
 
 	vaultHealth, _ := s.Vault.Health()
-	elasticHealth := s.Elastic.Health().Info()
+	elasticHealth := s.Elastic.HealthInfo()
 	dbHealth := models.DatabaseHealth{
 		Healthy:       elasticHealth.Healthy,
 		ClusterName:   elasticHealth.ClusterName,
@@ -75,7 +68,7 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Request) {
-	pod, err := s.limenClient().VerifyRequestOriginIP(req.RemoteAddr)
+	pod, err := s.Kubernetes.VerifyRequestOriginIP(req.RemoteAddr)
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
@@ -134,7 +127,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	pod, err := s.limenClient().VerifyRequestOriginIP(req.RemoteAddr)
+	pod, err := s.Kubernetes.VerifyRequestOriginIP(req.RemoteAddr)
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
@@ -176,35 +169,20 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 	}
 
 	roleNames := generateRoleNames(&creationRequest)
-	putUser := elasticmodels.CreateUserRequest{
-		Password: password,
-		Roles:    roleNames,
-		FullName: creationRequest.Username,
-		Email:    fmt.Sprintf("%s@odysseia-greek.com", creationRequest.Username),
-		Metadata: &elasticmodels.Metadata{Version: 1},
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	userCreated, err := s.Elastic.Access().CreateUserWithContext(ctx, creationRequest.Username, putUser)
+	userCreated, err := s.Elastic.CreateUser(creationRequest.Username, password, roleNames)
 	if err != nil {
 		s.handleValidationError(w, "createUser", requestID, err)
 		return
 	}
 
 	logging.Debug(fmt.Sprintf("created new user: %s from pod: %s", creationRequest.Username, pod.Name))
-	createRequest := diogenes.CreateSecretRequest{
-		Data: diogenes.ElasticConfigVault{
-			Username:    creationRequest.Username,
-			Password:    password,
-			ElasticCERT: string(s.ElasticCert),
-		},
-	}
-
-	payload, _ := createRequest.Marshal()
 	logging.Debug(fmt.Sprintf("created secret: %s", pod.Name))
-	secretCreated, err := s.Vault.CreateNewSecret(pod.Name, payload)
+	secretCreated, err := s.Vault.CreateElasticSecret(
+		pod.Name,
+		creationRequest.Username,
+		password,
+		string(s.ElasticCert),
+	)
 	if err != nil {
 		s.handleValidationError(w, "createSecret", requestID, err)
 		return
@@ -261,11 +239,4 @@ func sliceContains(slice []string, str string) bool {
 		}
 	}
 	return false
-}
-
-func (s *SolonHandler) limenClient() *limen.Client {
-	if s.limen == nil {
-		s.limen = limen.NewClient(s.Kube, s.Namespaces, s.Elastic, s.Vault)
-	}
-	return s.limen
 }

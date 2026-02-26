@@ -1,7 +1,8 @@
-package limen
+package kubernetes
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/odysseia-greek/agora/plato/logging"
@@ -26,7 +27,7 @@ func (c *Client) StartWatching() error {
 	podInformer := factory.Core().V1().Pods().Informer()
 
 	// Register event handlers
-	podInformer.AddEventHandler(c.handlePodEvents())
+	podInformer.AddEventHandler(c.handlePodWatchEvents())
 
 	// Start informers
 	stopCh := make(chan struct{})
@@ -36,7 +37,7 @@ func (c *Client) StartWatching() error {
 	return nil
 }
 
-func (c *Client) handlePodEvents() cache.ResourceEventHandlerFuncs {
+func (c *Client) handlePodWatchEvents() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			pod, ok := obj.(*v1.Pod)
@@ -58,11 +59,24 @@ func (c *Client) handlePodEvents() cache.ResourceEventHandlerFuncs {
 			}
 
 			if inManagedNameSpace {
-				err := c.deleteOrphans(pod)
+				if c.cleaner == nil {
+					logging.Error("limen kubernetes client has no cleanup client")
+					return
+				}
+				username := normalizeUsername(pod.Name)
+				err := c.cleaner.DeleteOrphan(username, pod.Name)
 				if err != nil {
 					logging.Error(err.Error())
 				}
 			}
 		},
 	}
+}
+
+func normalizeUsername(podName string) string {
+	splitPodName := strings.Split(podName, "-")
+	if len(splitPodName) > 1 {
+		return splitPodName[0] + splitPodName[len(splitPodName)-1]
+	}
+	return splitPodName[0]
 }

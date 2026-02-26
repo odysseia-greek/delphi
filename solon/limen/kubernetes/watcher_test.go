@@ -1,4 +1,4 @@
-package limen
+package kubernetes
 
 import (
 	"testing"
@@ -9,66 +9,66 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type cleanerSpy struct {
+	deletedUsers []string
+	deletedPods  []string
+}
+
+func (c *cleanerSpy) DeleteOrphan(username, podName string) error {
+	c.deletedUsers = append(c.deletedUsers, username)
+	c.deletedPods = append(c.deletedPods, podName)
+	return nil
+}
+
 func TestHandlePodEvents_IgnoresNonPodObjects(t *testing.T) {
-	access := &accessSpy{}
-	vault := &vaultSpy{}
+	cleaner := &cleanerSpy{}
 	client := &Client{
 		namespaces: logoi.Namespaces{},
-		elastic:    &elasticSpy{access: access},
-		vault:      vault,
+		cleaner:    cleaner,
 	}
-	handlers := client.handlePodEvents()
+	handlers := client.handlePodWatchEvents()
 
 	assert.NotPanics(t, func() {
 		handlers.DeleteFunc("not-a-pod")
 	})
-	assert.Empty(t, access.deletedUserName)
+	assert.Empty(t, cleaner.deletedPods)
 }
 
 func TestHandlePodEvents_TriggersCleanupInManagedNamespace(t *testing.T) {
-	access := &accessSpy{}
-	vault := &vaultSpy{}
+	cleaner := &cleanerSpy{}
 	client := &Client{
 		namespaces: logoi.Namespaces{
 			SolonNamespace:    "solon-system",
 			WatchedNamespaces: []string{"watched"},
 		},
-		elastic: &elasticSpy{access: access},
-		vault:   vault,
+		cleaner: cleaner,
 	}
-	handlers := client.handlePodEvents()
+	handlers := client.handlePodWatchEvents()
 
 	handlers.DeleteFunc(&v1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:      "worker-pod-42",
 		Namespace: "watched",
 	}})
 
-	assert.Equal(t, []string{"worker42"}, access.deletedUserName)
-	assert.Equal(t, []string{"worker-pod-42"}, vault.deleteSecretCalls)
-	assert.Equal(t, []string{"worker-pod-42"}, vault.removeSecretCalls)
-	assert.Equal(t, []string{"policy-worker-pod-42"}, vault.deletePolicyCalls)
+	assert.Equal(t, []string{"worker42"}, cleaner.deletedUsers)
+	assert.Equal(t, []string{"worker-pod-42"}, cleaner.deletedPods)
 }
 
 func TestHandlePodEvents_SkipsCleanupOutsideManagedNamespaces(t *testing.T) {
-	access := &accessSpy{}
-	vault := &vaultSpy{}
+	cleaner := &cleanerSpy{}
 	client := &Client{
 		namespaces: logoi.Namespaces{
 			SolonNamespace:    "solon-system",
 			WatchedNamespaces: []string{"watched"},
 		},
-		elastic: &elasticSpy{access: access},
-		vault:   vault,
+		cleaner: cleaner,
 	}
-	handlers := client.handlePodEvents()
+	handlers := client.handlePodWatchEvents()
 
 	handlers.DeleteFunc(&v1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:      "worker-pod-42",
 		Namespace: "random",
 	}})
 
-	assert.Empty(t, access.deletedUserName)
-	assert.Empty(t, vault.deleteSecretCalls)
-	assert.Empty(t, vault.removeSecretCalls)
-	assert.Empty(t, vault.deletePolicyCalls)
+	assert.Empty(t, cleaner.deletedPods)
 }

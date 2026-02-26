@@ -35,7 +35,7 @@ func main() {
 		logging.Error(fmt.Sprintf("Failed to initialize Solon handler: %v", err))
 		log.Fatal("Startup failure")
 	}
-	solonHandler := stoa.NewSolonHandler(cfg)
+	solonHandler := lawgiver.NewSolonHandler(cfg)
 
 	// Setup server
 	srv := stoa.InitRoutes(solonHandler)
@@ -43,7 +43,7 @@ func main() {
 	logging.System(fmt.Sprintf("Running on port: %s", port))
 
 	go func() {
-		err := cfg.Limen.StartWatching()
+		err := cfg.KubernetesLimen.StartWatching()
 		if err != nil {
 			logging.Error(fmt.Sprintf("Failed to start watching deployments and pods: %v", err))
 		}
