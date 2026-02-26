@@ -2,39 +2,71 @@ package architect
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/odysseia-greek/agora/plato/logging"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"time"
 )
 
+// StartWatching starts shared informers for pods, deployments, jobs, and namespaces.
+// It blocks forever (until stopCh is closed).
 func (p *PeriklesHandler) StartWatching() error {
 	clientset, err := kubernetes.NewForConfig(p.Kube.RestConfig())
 	if err != nil {
 		return err
 	}
+
+	// Resync is fine; real-time events still come via watch.
 	factory := informers.NewSharedInformerFactory(clientset, 30*time.Second)
 
-	// Watch Pods and Deployments
 	podInformer := factory.Core().V1().Pods().Informer()
 	deployInformer := factory.Apps().V1().Deployments().Informer()
 	jobInformer := factory.Batch().V1().Jobs().Informer()
+	nsInformer := factory.Core().V1().Namespaces().Informer()
 
-	// Register event handlers
 	podInformer.AddEventHandler(p.handlePodEvents())
 	deployInformer.AddEventHandler(p.handleDeploymentEvents())
 	jobInformer.AddEventHandler(p.handleJobEvents())
+	nsInformer.AddEventHandler(p.handleNamespaceEvents())
 
-	// Start informers
 	stopCh := make(chan struct{})
+
+	logging.System("Starting informers (pods, deployments, jobs, namespaces)...")
 	factory.Start(stopCh)
 
-	<-stopCh // Keep running indefinitely
+	logging.System("Waiting for informer caches to sync...")
+	if ok := cache.WaitForCacheSync(
+		stopCh,
+		podInformer.HasSynced,
+		deployInformer.HasSynced,
+		jobInformer.HasSynced,
+		nsInformer.HasSynced,
+	); !ok {
+		return fmt.Errorf("failed waiting for caches to sync")
+	}
+	logging.System("Informer caches synced. Watching for events.")
+
+	<-stopCh
 	return nil
+}
+
+func (p *PeriklesHandler) isManagedNamespace(ns string) bool {
+	if ns == p.Namespace {
+		return true
+	}
+	for _, watched := range p.WatchedNamespaces {
+		if ns == watched {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *PeriklesHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
@@ -46,7 +78,21 @@ func (p *PeriklesHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
-			if pod.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if pod.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if pod.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
@@ -58,7 +104,7 @@ func (p *PeriklesHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 			if deployment != nil {
 				if hostsAnnotation, exists := deployment.Spec.Template.Annotations[AnnotationHost]; exists {
 					secretName := fmt.Sprintf("%s-tls-certs", hostsAnnotation)
-					err = p.ensureSecrets(secretName)
+					err = p.ensureSecrets(secretName, deployment.Namespace)
 					if err != nil {
 						err := p.checkForAnnotations(deployment)
 						if err != nil {
@@ -98,7 +144,21 @@ func (p *PeriklesHandler) handleDeploymentEvents() cache.ResourceEventHandlerFun
 				return
 			}
 
-			if deploy.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if deploy.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if deploy.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
@@ -115,12 +175,26 @@ func (p *PeriklesHandler) handleDeploymentEvents() cache.ResourceEventHandlerFun
 				return
 			}
 
-			if deploy.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if deploy.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if deploy.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
 			logging.System(fmt.Sprintf("deploy deleted: name=%s, namespace=%s", deploy.Name, deploy.Namespace))
-			if err := p.cleanUpNetWorkPolicies(deploy.Name); err != nil {
+			if err := p.cleanUpNetWorkPolicies(deploy.Name, deploy.Namespace); err != nil {
 				logging.Error(fmt.Sprintf("Failed to clean up network policies for %s: %v", deploy.Name, err))
 			}
 			// Clean up mapping
@@ -140,7 +214,21 @@ func (p *PeriklesHandler) handleJobEvents() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
-			if job.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if job.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if job.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
@@ -157,15 +245,134 @@ func (p *PeriklesHandler) handleJobEvents() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
-			if job.Namespace != p.Namespace {
+			var inManagedNameSpace bool
+			if job.Namespace == p.Namespace {
+				inManagedNameSpace = true
+			}
+
+			if !inManagedNameSpace {
+				for _, ns := range p.WatchedNamespaces {
+					if job.Namespace == ns {
+						inManagedNameSpace = true
+						break
+					}
+				}
+			}
+
+			if !inManagedNameSpace {
 				return
 			}
 
 			logging.System(fmt.Sprintf("job deleted: name=%s, namespace=%s", job.Name, job.Namespace))
-			err := p.cleanUpNetWorkPolicies(job.Name)
+			err := p.cleanUpNetWorkPolicies(job.Name, job.Namespace)
 			if err != nil {
 				logging.Error(err.Error())
 			}
 		},
+	}
+}
+
+func (p *PeriklesHandler) handleNamespaceEvents() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			ns, ok := obj.(*corev1.Namespace)
+			if !ok {
+				logging.Error("failed to cast obj to Namespace")
+				return
+			}
+			p.onNamespace(ns, "created")
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			ns, ok := newObj.(*corev1.Namespace)
+			if !ok {
+				logging.Error("failed to cast obj to Namespace")
+				return
+			}
+			p.onNamespace(ns, "updated")
+		},
+	}
+}
+
+func (p *PeriklesHandler) ensureNamespaceBootstrapVaultAndSolon(targetNamespace string) error {
+	if targetNamespace == BootstrapSourceNamespace {
+		return nil
+	}
+
+	logging.System(fmt.Sprintf("namespace %s: replicating Vault TLS secret (%s/%s -> %s/%s)",
+		targetNamespace, BootstrapSourceNamespace, VaultTLSSourceSecret, targetNamespace, VaultTLSSourceSecret))
+
+	if err := p.copySecretAllKeys(BootstrapSourceNamespace, targetNamespace, VaultTLSSourceSecret); err != nil {
+		return err
+	}
+
+	logging.System(fmt.Sprintf("namespace %s: replicating Solon TLS secret (%s/%s -> %s/%s)",
+		targetNamespace, BootstrapSourceNamespace, SolonTLSSourceSecret, targetNamespace, SolonTLSSourceSecret))
+
+	if err := p.copySecretAllKeys(BootstrapSourceNamespace, targetNamespace, SolonTLSSourceSecret); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PeriklesHandler) onNamespace(ns *corev1.Namespace, verb string) {
+	annotations := ns.Annotations
+	if annotations == nil {
+		return
+	}
+
+	targetNS := ns.Name
+
+	// 1) Replication (allowed even if not in managed namespaces)
+	if replVal := strings.TrimSpace(annotations[AnnotationReplicateFrom]); replVal != "" {
+		refs := parseReplicateFrom(replVal)
+		if len(refs) > 0 {
+			logging.System(fmt.Sprintf("namespace %s: %s (replicate-from=%q)", targetNS, verb, replVal))
+		}
+
+		for _, ref := range refs {
+			// Avoid self-copy loops
+			if ref.Namespace == targetNS {
+				logging.Warn(fmt.Sprintf(
+					"namespace %s: skipping replicate-from %s:%s (source and target namespace are the same)",
+					targetNS, ref.SecretName, ref.Namespace))
+				continue
+			}
+
+			logging.System(fmt.Sprintf(
+				"namespace %s: replicating secret %s from %s",
+				targetNS, ref.SecretName, ref.Namespace))
+
+			// copies the full secret (all keys), as requested
+			if err := p.copySecretAllKeys(ref.Namespace, targetNS, ref.SecretName); err != nil {
+				logging.Error(fmt.Sprintf(
+					"namespace %s: failed replicating secret %s from %s: %v",
+					targetNS, ref.SecretName, ref.Namespace, err))
+				// keep going; don't fail the entire namespace processing
+				continue
+			}
+		}
+	}
+
+	// 2) Bootstrap (only for managed namespaces)
+	bootVal := strings.ToLower(strings.TrimSpace(annotations[AnnotationNamespaceBootstrap]))
+	if bootVal == "true" {
+		if !p.isManagedNamespace(targetNS) {
+			logging.Debug(fmt.Sprintf(
+				"namespace %s: bootstrap=true but namespace is not managed; ignoring bootstrap",
+				targetNS))
+			return
+		}
+
+		logging.System(fmt.Sprintf("namespace %s: %s (bootstrap=true)", targetNS, verb))
+
+		if err := p.ensureNamespaceBootstrapVaultAndSolon(targetNS); err != nil {
+			logging.Error(fmt.Sprintf("namespace %s: bootstrap failed: %v", targetNS, err))
+			return
+		}
+
+		logging.System(fmt.Sprintf(
+			"namespace %s: bootstrap complete (vault+solon TLS secrets replicated)",
+			targetNS))
 	}
 }

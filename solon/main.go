@@ -5,15 +5,17 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/agora/plato/tlsmanager"
-	"github.com/odysseia-greek/delphi/solon/lawgiver"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/agora/plato/tlsmanager"
+	"github.com/odysseia-greek/delphi/solon/lawgiver"
+	"github.com/odysseia-greek/delphi/solon/stoa"
 )
 
 const defaultPort = ":5443"
@@ -28,20 +30,20 @@ func main() {
 
 	ctx := context.Background()
 
-	// Initialize Solon handler
-	solonHandler, err := lawgiver.CreateNewConfig(ctx)
+	cfg, err := lawgiver.CreateNewConfig(ctx)
 	if err != nil {
 		logging.Error(fmt.Sprintf("Failed to initialize Solon handler: %v", err))
 		log.Fatal("Startup failure")
 	}
+	solonHandler := lawgiver.NewSolonHandler(cfg)
 
 	// Setup server
-	srv := lawgiver.InitRoutes(solonHandler)
+	srv := stoa.InitRoutes(solonHandler)
 	logging.System(fmt.Sprintf("TLS enabled: %v", solonHandler.TLSEnabled))
 	logging.System(fmt.Sprintf("Running on port: %s", port))
 
 	go func() {
-		err := solonHandler.StartWatching()
+		err := cfg.KubernetesLimen.StartWatching()
 		if err != nil {
 			logging.Error(fmt.Sprintf("Failed to start watching deployments and pods: %v", err))
 		}
@@ -95,8 +97,15 @@ func startTLSServer(port string, srv *mux.Router) {
 		rootPath = tlsmanager.DefaultCertRoot
 	}
 
-	// Load CA certificate for self-signed certificate validation
-	caPath := filepath.Join(rootPath, SolonService, "tls.pem")
+	// Resolve CA path (cert-manager: ca.crt, legacy: tls.pem)
+	caPath := firstExistingFile(
+		filepath.Join(rootPath, SolonService),
+		[]string{"ca.crt", "tls.pem"},
+	)
+	if caPath == "" {
+		log.Fatalf("Failed to find CA file; expected ca.crt or tls.pem in %s", filepath.Join(rootPath, SolonService))
+	}
+
 	caFromFile, err := os.ReadFile(caPath)
 	if err != nil {
 		log.Fatalf("Failed to read CA certificate: %v", err)
@@ -118,7 +127,6 @@ func startTLSServer(port string, srv *mux.Router) {
 	// Start watching for certificate changes
 	tlsManager.WatchCertificates(pollInterval)
 
-	// Create and configure the HTTPS server
 	server := &http.Server{
 		Addr:    port,
 		Handler: srv,
@@ -133,4 +141,14 @@ func startTLSServer(port string, srv *mux.Router) {
 	if err := server.ListenAndServeTLS("", ""); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func firstExistingFile(dirPath string, candidates []string) string {
+	for _, name := range candidates {
+		p := filepath.Join(dirPath, name)
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+			return p
+		}
+	}
+	return ""
 }

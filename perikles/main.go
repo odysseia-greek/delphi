@@ -1,29 +1,46 @@
 package main
 
 import (
-	"crypto/tls"
+	"context"
 	"fmt"
+	"log"
+	"strings"
+	"time"
+
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/perikles/architect"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (
-	standardPort = "4443"
-	crtFileName  = "tls.crt"
-	keyFileName  = "tls.key"
+	crdReadySleep = 20 * time.Second
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = standardPort
+	printBanner()
+
+	logging.System("Bootstrapping Perikles configuration...")
+	cfg, err := architect.CreateNewConfig()
+	if err != nil {
+		log.Fatal("death has found me")
 	}
-	//https://patorjk.com/software/taag/#p=display&f=Crawford2&t=PERIKLES
+
+	logging.System(fmt.Sprintf("Namespace: %s", cfg.Namespace))
+	logging.System(fmt.Sprintf("CRD name:   %s", cfg.CrdName))
+
+	// Ensure CRD exists and mapping object exists
+	if err := ensureCRDAndMapping(cfg); err != nil {
+		log.Fatal(err.Error())
+	}
+
+	// Start background loops / watchers
+	startControllers(cfg)
+
+	logging.System("Perikles is running. Awaiting events.")
+	select {} // keep process alive
+}
+
+func printBanner() {
+	// https://patorjk.com/software/taag/#p=display&f=Crawford2&t=PERIKLES
 	logging.System(`
  ____   ___  ____   ____  __  _  _        ___  _____
 |    \ /  _]|    \ |    ||  |/ ]| |      /  _]/ ___/
@@ -38,92 +55,76 @@ func main() {
 	logging.System("\"τόν γε σοφώτατον οὐχ ἁμαρτήσεται σύμβουλον ἀναμείνας χρόνον.\"")
 	logging.System("\"he would yet do full well to wait for that wisest of all counsellors, Time.\"")
 	logging.System(strings.Repeat("~", 37))
+}
 
-	handler, err := architect.CreateNewConfig()
+func ensureCRDAndMapping(cfg *architect.PeriklesHandler) error {
+	logging.System("Ensuring Perikles CRD exists...")
+
+	created, err := cfg.Mapping.CreateInCluster()
 	if err != nil {
-		log.Fatal("death has found me")
-	}
-
-	logging.Debug("init for CA started...")
-	err = handler.Cert.InitCa()
-	if err != nil {
-		log.Fatal("death has found me")
-	}
-
-	logging.Debug("CA created")
-
-	logging.Debug("creating CRD...")
-	created, err := handler.Mapping.CreateInCluster()
-	if err != nil {
-		logging.Error(err.Error())
+		return fmt.Errorf("failed to create/ensure CRD: %w", err)
 	}
 
 	if created {
-		logging.Debug("CRD created")
+		logging.System("CRD created. Waiting briefly for it to become established...")
+		time.Sleep(crdReadySleep)
 	} else {
-		logging.Debug("CRD not created, it might already exist")
+		logging.System("CRD already present.")
 	}
 
-	_, err = handler.Mapping.Get(handler.CrdName)
+	logging.System("Ensuring mapping resource exists...")
+
+	// If Get fails, we attempt to create the mapping resource (your previous logic).
+	if _, err := cfg.Mapping.Get(cfg.CrdName); err == nil {
+		logging.System("Mapping resource already present.")
+		return nil
+	}
+
+	logging.System("Mapping resource not found; creating a fresh mapping...")
+	mapping, err := cfg.Mapping.Parse(nil, cfg.CrdName, cfg.Namespace)
 	if err != nil {
-		mapping, err := handler.Mapping.Parse(nil, handler.CrdName, handler.Namespace)
-		if err != nil {
-			logging.Error(err.Error())
-		}
-
-		createdCrd, err := handler.Mapping.Create(mapping)
-		if err != nil {
-			logging.Error(err.Error())
-		} else {
-			logging.Debug(fmt.Sprintf("created mapping %s", createdCrd.Name))
-		}
+		return fmt.Errorf("failed to parse mapping template: %w", err)
 	}
 
-	logging.Debug("init routes")
-	srv := architect.InitRoutes(handler)
-
-	cfg := &tls.Config{
-		MinVersion:       tls.VersionTLS12,
-		CurvePreferences: []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
+	createdCrd, err := cfg.Mapping.Create(mapping)
+	if err != nil {
+		return fmt.Errorf("failed to create mapping resource: %w", err)
 	}
 
-	logging.System("setting up server with https")
+	logging.System(fmt.Sprintf("Created mapping: %s", createdCrd.Name))
+	return nil
+}
 
-	httpsServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      srv,
-		TLSConfig:    cfg,
-		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
-	}
+func startControllers(cfg *architect.PeriklesHandler) {
+	logging.System("Starting control loops...")
 
-	logging.System("loading cert files from mount")
-	certFile := filepath.Join(handler.TLSFiles, crtFileName)
-	keyFile := filepath.Join(handler.TLSFiles, keyFileName)
+	// These look like pure loops, so start them and log.
+	logging.System("• Mapping update loop")
+	go cfg.LoopForMappingUpdates()
 
-	// Run the ConfigMap watcher in the background
+	logging.System("• Pending update processor")
+	go cfg.StartProcessingPendingUpdates()
+
+	logging.System("• ConfigMap watcher")
 	go func() {
-		err := handler.WatchConfigMapChanges()
-		if err != nil {
-			logging.Error(fmt.Sprintf("Failed to start watching ConfigMap: %v", err))
+		if err := cfg.WatchConfigMapChanges(); err != nil {
+			logging.Error(fmt.Sprintf("ConfigMap watcher stopped: %v", err))
 		}
 	}()
 
+	logging.System("• Workload watchers (deployments/pods)")
 	go func() {
-		err := handler.StartWatching()
-		if err != nil {
-			logging.Error(fmt.Sprintf("Failed to start watching deployments and pods: %v", err))
+		if err := cfg.StartWatching(); err != nil {
+			logging.Error(fmt.Sprintf("Workload watcher stopped: %v", err))
 		}
 	}()
 
-	logging.System(fmt.Sprintf("starting server on address: %s", port))
-	err = httpsServer.ListenAndServeTLS(certFile, keyFile)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Optional: a small “startup probe” log after a short delay to show we’re alive.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = ctx // reserved for future: verify informers synced, etc.
+		time.Sleep(250 * time.Millisecond)
+		logging.System("All watchers started.")
+	}()
 }

@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/peisistratos/architect"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/odysseia-greek/agora/plato/logging"
+	"github.com/odysseia-greek/delphi/peisistratos/architect"
 )
 
 func main() {
@@ -34,10 +35,10 @@ func main() {
 
 	err = handler.InitVault()
 	if err != nil {
-		log.Print(err.Error())
+		logging.Error(err.Error())
 		os.Exit(1)
-	} else {
-		os.Exit(0)
 	}
+
+	os.Exit(0)
 
 }

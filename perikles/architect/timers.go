@@ -1,11 +1,12 @@
 package architect
 
 import (
-	"github.com/odysseia-greek/agora/plato/logging"
 	"time"
+
+	"github.com/odysseia-greek/agora/plato/logging"
 )
 
-func (p *PeriklesHandler) loopForMappingUpdates() {
+func (p *PeriklesHandler) LoopForMappingUpdates() {
 	ticker := time.NewTicker(p.TLSCheckTimer)
 	for {
 		select {
@@ -18,7 +19,7 @@ func (p *PeriklesHandler) loopForMappingUpdates() {
 	}
 }
 
-func (p *PeriklesHandler) startProcessingPendingUpdates() {
+func (p *PeriklesHandler) StartProcessingPendingUpdates() {
 	ticker := time.NewTicker(p.PendingUpdateTimer)
 	go func() {
 		for range ticker.C {

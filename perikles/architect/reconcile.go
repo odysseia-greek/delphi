@@ -3,39 +3,41 @@ package architect
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/agora/thales/crd/v1alpha"
+	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping/crd/v1alpha"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	"time"
 )
 
-func (p *PeriklesHandler) cleanUpNetWorkPolicies(serviceToRemove string) error {
+func (p *PeriklesHandler) cleanUpNetWorkPolicies(serviceToRemove, ns string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// List all network policies in the namespace
-	nwps, err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(p.Namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list network policies: %w", err)
-	}
-
-	// Iterate through the list and delete policies that match the service name
-	for _, nwp := range nwps.Items {
-		if strings.Contains(nwp.Name, "allow-all") {
-			continue
+	allNamespaces := append([]string{p.Namespace}, p.WatchedNamespaces...)
+	for _, namespace := range allNamespaces {
+		nwpInWatchedNs, err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to list network policies in %s namespace: %w", namespace, err)
 		}
-		if strings.Contains(nwp.Name, fmt.Sprintf("allow-%s-access", serviceToRemove)) || strings.Contains(nwp.Name, fmt.Sprintf("elasticsearch-access-%s", serviceToRemove)) {
-			// Delete the matching network policy
-			err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(p.Namespace).Delete(ctx, nwp.Name, metav1.DeleteOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to delete network policy %s: %w", nwp.Name, err)
+
+		for _, nwp := range nwpInWatchedNs.Items {
+			if strings.Contains(nwp.Name, "allow-all") {
+				continue
 			}
-			logging.Debug(fmt.Sprintf("Deleted network policy: %s", nwp.Name))
+
+			if strings.Contains(nwp.Name, fmt.Sprintf("allow-%s-access", serviceToRemove)) {
+				err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(namespace).Delete(ctx, nwp.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to delete network policy %s: %w", nwp.Name, err)
+				}
+				logging.Debug(fmt.Sprintf("Deleted network policy: %s in ns: %s", nwp.Name, namespace))
+			}
 		}
 	}
 
@@ -47,14 +49,14 @@ func (p *PeriklesHandler) podPartOfADeployment(pod *v1.Pod) (*appsv1.Deployment,
 		if owner.Kind == "ReplicaSet" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			rs, err := p.Kube.AppsV1().ReplicaSets(p.Namespace).Get(ctx, owner.Name, metav1.GetOptions{})
+			rs, err := p.Kube.AppsV1().ReplicaSets(pod.Namespace).Get(ctx, owner.Name, metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}
 
 			for _, rsOwner := range rs.OwnerReferences {
 				if rsOwner.Kind == "Deployment" {
-					return p.Kube.AppsV1().Deployments(p.Namespace).Get(ctx, rsOwner.Name, metav1.GetOptions{})
+					return p.Kube.AppsV1().Deployments(pod.Namespace).Get(ctx, rsOwner.Name, metav1.GetOptions{})
 				}
 			}
 		}
@@ -67,17 +69,17 @@ func (p *PeriklesHandler) podPartOfAJob(pod *v1.Pod) (*batchv1.Job, error) {
 		if owner.Kind == "Job" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			return p.Kube.BatchV1().Jobs(p.Namespace).Get(ctx, owner.Name, metav1.GetOptions{})
+			return p.Kube.BatchV1().Jobs(pod.Namespace).Get(ctx, owner.Name, metav1.GetOptions{})
 		}
 	}
 	return nil, fmt.Errorf("no job found")
 }
 
-func (p *PeriklesHandler) ensureSecrets(secretName string) error {
+func (p *PeriklesHandler) ensureSecrets(secretName, ns string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	secret, err := p.Kube.CoreV1().Secrets(p.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+	secret, err := p.Kube.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		return fmt.Errorf("secret %s not found: %w", secretName, err)
 	}

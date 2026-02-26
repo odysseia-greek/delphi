@@ -3,16 +3,36 @@ package lawgiver
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/odysseia-greek/agora/aristoteles"
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	kubernetes "github.com/odysseia-greek/agora/thales"
 	aristophanes "github.com/odysseia-greek/attike/aristophanes/comedy"
-	"os"
+	arv1 "github.com/odysseia-greek/attike/aristophanes/gen/go/v1"
+	limencleanup "github.com/odysseia-greek/delphi/solon/limen/cleanup"
+	limenelastic "github.com/odysseia-greek/delphi/solon/limen/elastic"
+	limenkubernetes "github.com/odysseia-greek/delphi/solon/limen/kubernetes"
+	limenvault "github.com/odysseia-greek/delphi/solon/limen/vault"
+	"github.com/odysseia-greek/delphi/solon/logoi"
 )
 
-func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
+type Config struct {
+	ElasticCert      []byte
+	AccessAnnotation string
+	RoleAnnotation   string
+	TLSEnabled       bool
+	Streamer         arv1.TraceService_ChorusClient
+	Cancel           context.CancelFunc
+	ElasticLimen     *limenelastic.Client
+	VaultLimen       *limenvault.Client
+	KubernetesLimen  *limenkubernetes.Client
+	CleanupLimen     *limencleanup.Client
+}
+
+func CreateNewConfig(ctx context.Context) (*Config, error) {
 	vault, err := diogenes.CreateVaultClient(true)
 	if err != nil {
 		return nil, err
@@ -27,12 +47,10 @@ func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
 
 	var cert string
 
-	cfg, err := aristoteles.ElasticConfig(tls)
+	cfg, err := aristoteles.ElasticConfig(false)
 	if err != nil {
-		logging.Error(fmt.Sprintf("failed to create Elastic client operations will be interupted, %s", err.Error()))
+		logging.Error(fmt.Sprintf("failed to create Elastic client operations will be interrupted, %s", err.Error()))
 	}
-
-	cert = cfg.ElasticCERT
 
 	elastic, err := aristoteles.NewClient(cfg)
 	if err != nil {
@@ -44,17 +62,15 @@ func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
 		return nil, err
 	}
 
-	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
+	var namespaces logoi.Namespaces
+	namespaces.SolonNamespace = config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
+
+	otherNamespacesFromEnv := config.StringFromEnv("SOLON_MANAGED_NAMESPACES", "")
+	namespaces.WatchedNamespaces = strings.Split(otherNamespacesFromEnv, ";")
 
 	tracer, err := aristophanes.NewClientTracer(aristophanes.DefaultAddress)
 	if err != nil {
 		logging.Error(err.Error())
-	}
-
-	healthy := tracer.WaitForHealthyState()
-	if !healthy {
-		logging.Debug("tracing service not ready - restarting seems the only option")
-		os.Exit(1)
 	}
 
 	streamer, err := tracer.Chorus(ctx)
@@ -64,16 +80,20 @@ func CreateNewConfig(ctx context.Context) (*SolonHandler, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	return &SolonHandler{
-		Vault:            vault,
-		Elastic:          elastic,
+	elasticLimen := limenelastic.NewClient(elastic)
+	vaultLimen := limenvault.NewClient(vault)
+	cleanupLimen := limencleanup.NewClient(elasticLimen, vaultLimen)
+
+	return &Config{
 		ElasticCert:      []byte(cert),
-		Kube:             kube,
-		Namespace:        ns,
 		AccessAnnotation: config.DefaultAccessAnnotation,
 		RoleAnnotation:   config.DefaultRoleAnnotation,
 		TLSEnabled:       tls,
 		Streamer:         streamer,
 		Cancel:           cancel,
+		ElasticLimen:     elasticLimen,
+		VaultLimen:       vaultLimen,
+		KubernetesLimen:  limenkubernetes.NewClient(kube, namespaces, cleanupLimen),
+		CleanupLimen:     cleanupLimen,
 	}, nil
 }

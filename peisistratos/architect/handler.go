@@ -5,17 +5,17 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/vault/api"
 	"github.com/odysseia-greek/agora/diogenes"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/thales"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 type PeisistratosHandler struct {
@@ -67,6 +67,7 @@ func (p *PeisistratosHandler) InitVault() error {
 	logging.Debug(fmt.Sprintf("vault status: %s", jsonStatus))
 
 	if status.Initialized {
+		logging.Debug("vault is already initialized")
 		return nil
 	}
 
@@ -75,6 +76,10 @@ func (p *PeisistratosHandler) InitVault() error {
 	nodes, err := p.getVaultPodNodes()
 	if err != nil {
 		return err
+	}
+
+	for _, node := range nodes {
+		logging.Debug(fmt.Sprintf("vault pod node: %s", node))
 	}
 
 	var init *api.InitResponse
@@ -124,7 +129,7 @@ func (p *PeisistratosHandler) InitVault() error {
 
 	files, err := embedPolicies.ReadDir("hcl/policies")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	for _, file := range files {
@@ -135,7 +140,7 @@ func (p *PeisistratosHandler) InitVault() error {
 		// Read the content of the HCL file
 		content, err := embedPolicies.ReadFile(fmt.Sprintf("hcl/policies/%s", file.Name()))
 		if err != nil {
-			log.Printf("Error reading file %s: %v\n", file.Name(), err)
+			logging.Debug(fmt.Sprintf("Error reading file %s: %v\n", file.Name(), err))
 			continue
 		}
 
