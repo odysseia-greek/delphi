@@ -1,7 +1,3 @@
-Here's the revised **Delphi** documentation incorporating **Aristides** as the new sidecar name and including all relevant services:
-
----
-
 # Delphi <!-- omit in toc -->
 
 **Delphi** holds all services that need access to **Vault** for secrets management. It provides a structured approach to handling secrets securely within the **Odysseia-Greek** ecosystem. Services within **Delphi** either fetch secrets directly from **Vault** or assist other components in managing configuration securely.
