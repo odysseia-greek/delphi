@@ -2,6 +2,7 @@ package architect
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -196,8 +197,33 @@ func (p *PeriklesHandler) handleDeploymentEvents() cache.ResourceEventHandlerFun
 
 			logging.System(fmt.Sprintf("deploy created: name=%s, namespace=%s", deploy.Name, deploy.Namespace))
 			p.recordEvent("deployment.created", "Deployment discovered", deploy.Namespace, deploy.Name, nil)
+			if err := p.checkForAnnotations(deploy); err != nil {
+				logging.Error(err.Error())
+			}
 			err := p.checkForElasticAnnotations(deploy, nil)
 			if err != nil {
+				logging.Error(err.Error())
+			}
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldDeploy, oldOK := oldObj.(*appsv1.Deployment)
+			newDeploy, newOK := newObj.(*appsv1.Deployment)
+			if !oldOK || !newOK {
+				logging.Error("failed to cast updated object to Deployment")
+				return
+			}
+			if !p.isManagedNamespace(newDeploy.Namespace) {
+				return
+			}
+			if reflect.DeepEqual(oldDeploy.Spec.Template.Annotations, newDeploy.Spec.Template.Annotations) {
+				return
+			}
+
+			p.recordEvent("deployment.updated", "Deployment annotations changed", newDeploy.Namespace, newDeploy.Name, nil)
+			if err := p.checkForAnnotations(newDeploy); err != nil {
+				logging.Error(err.Error())
+			}
+			if err := p.checkForElasticAnnotations(newDeploy, nil); err != nil {
 				logging.Error(err.Error())
 			}
 		},

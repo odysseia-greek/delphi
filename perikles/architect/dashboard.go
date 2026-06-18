@@ -242,9 +242,6 @@ func (p *PeriklesHandler) dashboardEvents(writer http.ResponseWriter, request *h
 	writer.Header().Set("Cache-Control", "no-cache")
 	writer.Header().Set("Connection", "keep-alive")
 
-	for _, event := range p.Events.Snapshot() {
-		writeServerEvent(writer, event)
-	}
 	flusher.Flush()
 
 	events, unsubscribe := p.Events.Subscribe()
@@ -281,9 +278,15 @@ func (p *PeriklesHandler) buildDashboardState(ctx context.Context) DashboardStat
 	now := time.Now().UTC()
 	state := DashboardState{
 		GeneratedAt:    now,
+		Services:       make([]v1alpha.Service, 0),
 		PendingUpdates: make(map[string][]MappingUpdate),
+		Policies:       make([]DashboardPolicy, 0),
 		Events:         p.Events.Snapshot(),
+		Errors:         make([]string, 0),
 		Namespaces:     uniqueNamespaces(p.Namespace, p.ElasticNs, p.VaultNs),
+	}
+	if state.Events == nil {
+		state.Events = make([]DashboardEvent, 0)
 	}
 	state.Namespaces = uniqueNamespaces(append(state.Namespaces, p.WatchedNamespaces...)...)
 

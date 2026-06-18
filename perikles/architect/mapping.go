@@ -63,6 +63,9 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 	}
 
 	for _, service := range mapping.Spec.Services {
+		if service.Validity <= 0 || service.Created == "" {
+			continue
+		}
 		redeploy, err := calculateTimeDifference(service.Validity, service.Created)
 		if err != nil {
 			return err

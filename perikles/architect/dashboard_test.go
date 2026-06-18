@@ -129,3 +129,21 @@ func TestDashboardPageAndHealth(t *testing.T) {
 		assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
 	})
 }
+
+func TestDashboardStateUsesArraysWhenEmpty(t *testing.T) {
+	handler := &PeriklesHandler{
+		PendingUpdates: make(map[string][]MappingUpdate),
+		Events:         NewEventStore(10),
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/perikles/v1/state", nil)
+	response := httptest.NewRecorder()
+	handler.DashboardHandler().ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	var payload map[string]json.RawMessage
+	require.NoError(t, json.NewDecoder(response.Body).Decode(&payload))
+	assert.JSONEq(t, `[]`, string(payload["services"]))
+	assert.JSONEq(t, `[]`, string(payload["policies"]))
+	assert.JSONEq(t, `[]`, string(payload["events"]))
+}

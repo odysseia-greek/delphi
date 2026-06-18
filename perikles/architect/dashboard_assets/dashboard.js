@@ -17,15 +17,19 @@ const table = (headers, rows) => rows.length
   : '<div class="empty">Nothing to show.</div>';
 
 function render(state) {
-  document.querySelector("#serviceCount").textContent = state.services.length;
-  document.querySelector("#clientCount").textContent = state.services.reduce((count, service) => count + (service.clients?.length || 0), 0);
-  document.querySelector("#policyCount").textContent = state.policies.length;
-  document.querySelector("#pendingCount").textContent = Object.values(state.pendingUpdates).reduce((count, updates) => count + updates.length, 0);
+  const services = state.services || [];
+  const policies = state.policies || [];
+  const pendingUpdates = state.pendingUpdates || {};
+
+  document.querySelector("#serviceCount").textContent = services.length;
+  document.querySelector("#clientCount").textContent = services.reduce((count, service) => count + (service.clients?.length || 0), 0);
+  document.querySelector("#policyCount").textContent = policies.length;
+  document.querySelector("#pendingCount").textContent = Object.values(pendingUpdates).reduce((count, updates) => count + updates.length, 0);
   document.querySelector("#updated").textContent = `Updated ${new Date(state.generatedAt).toLocaleTimeString()}`;
 
   document.querySelector("#services").innerHTML = table(
     ["Service", "Namespace", "Type", "Active", "Validity", "Clients"],
-    state.services.map(service => `<tr>
+    services.map(service => `<tr>
       <td><b>${escapeHTML(service.name)}</b><br><span class="muted">${escapeHTML(service.secretName)}</span></td>
       <td>${escapeHTML(service.namespace)}</td>
       <td><span class="pill">${escapeHTML(service.kubeType)}</span></td>
@@ -37,7 +41,7 @@ function render(state) {
 
   document.querySelector("#policies").innerHTML = table(
     ["Policy", "Source", "Age", "Valid"],
-    state.policies.map(policy => `<tr>
+    policies.map(policy => `<tr>
       <td><b>${escapeHTML(policy.name)}</b><br><span class="muted">${escapeHTML(policy.namespace)}</span></td>
       <td>${escapeHTML(policy.sourceKind || "legacy")}<br><span class="muted">${escapeHTML(`${policy.sourceNamespace ? `${policy.sourceNamespace}/` : ""}${policy.sourceName || ""}`)}</span></td>
       <td>${age(policy.ageSeconds)}</td>

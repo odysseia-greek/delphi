@@ -10,6 +10,7 @@ const (
 	AnnotationSourceNamespace    = "perikles/source-namespace"
 	AnnotationSourceUID          = "perikles/source-uid"
 	AnnotationHost               = "perikles/hostname"
+	AnnotationValidity           = "perikles/validity"
 	AnnotationAccesses           = "perikles/accesses"
 	AnnotationNamespaceBootstrap = "perikles/bootstrap"
 	AnnotationReplicateFrom      = "perikles/replicate-from"
