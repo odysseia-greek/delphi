@@ -185,12 +185,20 @@ func (p *PeriklesHandler) generateCiliumNetworkPolicyElastic(deploy *v1.Deployme
 		name = deploy.Name
 		namespace = deploy.Namespace
 		kubeType = "deployment"
+		newAnnotation[AnnotationSourceKind] = "Deployment"
+		newAnnotation[AnnotationSourceName] = deploy.Name
+		newAnnotation[AnnotationSourceNamespace] = deploy.Namespace
+		newAnnotation[AnnotationSourceUID] = string(deploy.UID)
 	}
 
 	if job != nil {
 		name = job.Name
 		namespace = job.Namespace
 		kubeType = "job"
+		newAnnotation[AnnotationSourceKind] = "Job"
+		newAnnotation[AnnotationSourceName] = job.Name
+		newAnnotation[AnnotationSourceNamespace] = job.Namespace
+		newAnnotation[AnnotationSourceUID] = string(job.UID)
 	}
 
 	srcAppName, err := p.resolveAppSelectorName(name, namespace, kubeType)

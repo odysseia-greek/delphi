@@ -50,17 +50,20 @@ func CreateNewConfig() (*PeriklesHandler, error) {
 
 	tlsChecker := 1 * time.Hour
 	updateMappingTimer := 30 * time.Second
+	reconcileTimer := 1 * time.Hour
 
 	vaultNs := config.StringFromEnv("VAULT_NAMESPACE", "delphi")
 	elasticNs := config.StringFromEnv("ELASTIC_NAMESPACE", "agora")
 
 	otherNamespacesFromEnv := config.StringFromEnv("WATCHED_NAMESPACES", "")
 	watchedNamespaces := strings.Split(otherNamespacesFromEnv, ";")
+	dashboardAddr := config.StringFromEnv("DASHBOARD_ADDR", ":8080")
 
 	return &PeriklesHandler{
 		Mutex:              sync.Mutex{},
 		PendingUpdateTimer: updateMappingTimer,
 		TLSCheckTimer:      tlsChecker,
+		ReconcileTimer:     reconcileTimer,
 		PendingUpdates:     map[string][]MappingUpdate{},
 		Kube:               kube,
 		CiliumClient:       ciliumClient,
@@ -74,5 +77,7 @@ func CreateNewConfig() (*PeriklesHandler, error) {
 		VaultNs:            vaultNs,
 		ElasticNs:          elasticNs,
 		WatchedNamespaces:  watchedNamespaces,
+		DashboardAddr:      dashboardAddr,
+		Events:             NewEventStore(200),
 	}, nil
 }

@@ -17,7 +17,7 @@ type PeriklesHandler struct {
 	PendingUpdates     map[string][]MappingUpdate
 	Kube               *thales.KubeClient
 	Mapping            service_mapping.ServiceMapping
-	CiliumClient       *versioned.Clientset
+	CiliumClient       versioned.Interface
 	RuleSet            []CnpRuleSet
 	Namespace          string
 	CrdName            string
@@ -27,4 +27,6 @@ type PeriklesHandler struct {
 	VaultNs            string
 	ElasticNs          string
 	WatchedNamespaces  []string
+	DashboardAddr      string
+	Events             *EventStore
 }

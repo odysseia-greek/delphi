@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Perikles</title>
+  <link rel="stylesheet" href="/perikles/assets/dashboard.css">
+</head>
+<body>
+  <main>
+    <div class="top">
+      <div>
+        <h1>Περικλῆς</h1>
+        <div class="sub">Service mapping and network policy control plane</div>
+      </div>
+      <div>
+        <span id="connection" class="live">● connecting</span><br>
+        <span id="updated" class="muted"></span>
+      </div>
+    </div>
+    <section class="stats">
+      <div class="stat"><span class="muted">Services</span><b id="serviceCount">—</b></div>
+      <div class="stat"><span class="muted">Clients</span><b id="clientCount">—</b></div>
+      <div class="stat"><span class="muted">Managed CNPs</span><b id="policyCount">—</b></div>
+      <div class="stat"><span class="muted">Pending updates</span><b id="pendingCount">—</b></div>
+    </section>
+    <div class="grid">
+      <section class="panel wide"><h2>Known services</h2><div id="services"></div></section>
+      <section class="panel"><h2>Managed Cilium policies</h2><div id="policies"></div></section>
+      <section class="panel"><h2>Recent events</h2><div id="events"></div></section>
+      <section class="panel wide" id="errorPanel" hidden><h2 class="bad">Partial state errors</h2><div id="errors"></div></section>
+    </div>
+  </main>
+  <script src="/perikles/assets/dashboard.js" defer></script>
+</body>
+</html>
