@@ -3,9 +3,11 @@ package architect
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
+	ciliumv2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping/crd/v1alpha"
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,33 +17,160 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var legacyCronJobPolicyName = regexp.MustCompile(`^restrict-elasticsearch-access-.+-[0-9]+$`)
+
 func (p *PeriklesHandler) cleanUpNetWorkPolicies(serviceToRemove, ns string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	allNamespaces := append([]string{p.Namespace}, p.WatchedNamespaces...)
-	for _, namespace := range allNamespaces {
+	namespacesToCheck := []string{ns, p.Namespace, p.ElasticNs, p.VaultNs}
+	namespacesToCheck = append(namespacesToCheck, p.WatchedNamespaces...)
+	namespaces := uniqueNamespaces(namespacesToCheck...)
+	for _, namespace := range namespaces {
 		nwpInWatchedNs, err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to list network policies in %s namespace: %w", namespace, err)
 		}
 
 		for _, nwp := range nwpInWatchedNs.Items {
-			if strings.Contains(nwp.Name, "allow-all") {
-				continue
-			}
-
-			if strings.Contains(nwp.Name, fmt.Sprintf("allow-%s-access", serviceToRemove)) {
+			if policyBelongsToWorkload(nwp.Name, serviceToRemove) {
 				err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(namespace).Delete(ctx, nwp.Name, metav1.DeleteOptions{})
 				if err != nil {
+					if errors.IsNotFound(err) {
+						continue
+					}
 					return fmt.Errorf("failed to delete network policy %s: %w", nwp.Name, err)
 				}
 				logging.Debug(fmt.Sprintf("Deleted network policy: %s in ns: %s", nwp.Name, namespace))
+				p.recordEvent("policy.deleted", "Network policy deleted with its workload", namespace, nwp.Name, map[string]string{
+					"workload": serviceToRemove,
+				})
 			}
 		}
 	}
 
 	return nil
+}
+
+func policyBelongsToWorkload(policyName, workloadName string) bool {
+	if policyName == fmt.Sprintf("restrict-elasticsearch-access-%s", workloadName) {
+		return true
+	}
+
+	return strings.HasPrefix(policyName, fmt.Sprintf("allow-%s-access-", workloadName))
+}
+
+func uniqueNamespaces(namespaces ...string) []string {
+	seen := make(map[string]struct{}, len(namespaces))
+	unique := make([]string, 0, len(namespaces))
+	for _, namespace := range namespaces {
+		namespace = strings.TrimSpace(namespace)
+		if namespace == "" {
+			continue
+		}
+		if _, exists := seen[namespace]; exists {
+			continue
+		}
+		seen[namespace] = struct{}{}
+		unique = append(unique, namespace)
+	}
+	return unique
+}
+
+func (p *PeriklesHandler) LoopForStaleNetworkPolicies() {
+	interval := p.ReconcileTimer
+	if interval <= 0 {
+		interval = time.Hour
+	}
+
+	if err := p.cleanUpStaleJobNetworkPolicies(time.Now().UTC(), staleJobPolicyAge); err != nil {
+		logging.Error(err.Error())
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		if err := p.cleanUpStaleJobNetworkPolicies(time.Now().UTC(), staleJobPolicyAge); err != nil {
+			logging.Error(err.Error())
+		}
+	}
+}
+
+func (p *PeriklesHandler) cleanUpStaleJobNetworkPolicies(now time.Time, maxAge time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	policies, err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(p.ElasticNs).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list elastic network policies in namespace %s: %w", p.ElasticNs, err)
+	}
+
+	for _, policy := range policies.Items {
+		if !isStaleJobNetworkPolicy(&policy, now, maxAge) {
+			continue
+		}
+
+		if err := p.CiliumClient.CiliumV2().CiliumNetworkPolicies(p.ElasticNs).Delete(ctx, policy.Name, metav1.DeleteOptions{}); err != nil {
+			if errors.IsNotFound(err) {
+				continue
+			}
+			return fmt.Errorf("failed to delete stale network policy %s: %w", policy.Name, err)
+		}
+		logging.System(fmt.Sprintf("Deleted stale job network policy: %s in ns: %s", policy.Name, p.ElasticNs))
+		p.recordEvent("policy.stale_deleted", "Stale job network policy deleted", p.ElasticNs, policy.Name, map[string]string{
+			"age": now.Sub(policy.CreationTimestamp.Time).Round(time.Minute).String(),
+		})
+	}
+
+	return nil
+}
+
+func isStaleJobNetworkPolicy(policy *ciliumv2.CiliumNetworkPolicy, now time.Time, maxAge time.Duration) bool {
+	if !strings.HasPrefix(policy.Name, "restrict-elasticsearch-access-") {
+		return false
+	}
+
+	created := policy.CreationTimestamp.Time
+	if created.IsZero() {
+		updated, err := time.Parse(timeFormat, policy.Annotations[AnnotationUpdate])
+		if err != nil {
+			return false
+		}
+		created = updated
+	}
+
+	if now.Sub(created) <= maxAge {
+		return false
+	}
+
+	switch strings.ToLower(policy.Annotations[AnnotationSourceKind]) {
+	case "job":
+		return true
+	case "":
+		return legacyCronJobPolicyName.MatchString(policy.Name)
+	default:
+		return false
+	}
+}
+
+func (p *PeriklesHandler) jobHasActivePods(jobName, namespace string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pods, err := p.Kube.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("batch.kubernetes.io/job-name=%s", jobName),
+	})
+	if err != nil {
+		return false, err
+	}
+
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == v1.PodPending || pod.Status.Phase == v1.PodRunning {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (p *PeriklesHandler) podPartOfADeployment(pod *v1.Pod) (*appsv1.Deployment, error) {

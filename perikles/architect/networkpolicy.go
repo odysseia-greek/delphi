@@ -109,6 +109,7 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 		)
 
 		logging.Debug(fmt.Sprintf("CiliumNetworkPolicy %s deleted", policy.Name))
+		p.recordEvent("policy.replaced", "Existing network policy replaced", targetNs, policy.Name, nil)
 	}
 
 	// Correct the problematic fields in the unstructured object
@@ -183,5 +184,10 @@ func (p *PeriklesHandler) applyNetworkPolicy(policy *ciliumv2.CiliumNetworkPolic
 	}
 
 	logging.Debug(fmt.Sprintf("Successfully applied CiliumNetworkPolicy %s in namespace %s", policy.Name, targetNs))
+	p.recordEvent("policy.applied", "Network policy applied", targetNs, policy.Name, map[string]string{
+		"sourceKind":      policy.Annotations[AnnotationSourceKind],
+		"sourceName":      policy.Annotations[AnnotationSourceName],
+		"sourceNamespace": policy.Annotations[AnnotationSourceNamespace],
+	})
 	return nil
 }

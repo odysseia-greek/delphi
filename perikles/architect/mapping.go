@@ -44,6 +44,9 @@ func (p *PeriklesHandler) addHostToMapping(update MappingUpdate) error {
 		}
 		mapping.Spec.Services = append(mapping.Spec.Services, service)
 		_, err = p.Mapping.Update(mapping)
+		if err == nil {
+			p.recordEvent("mapping.service_added", "Service added to mapping", update.Namespace, update.HostName, nil)
+		}
 		return err
 	})
 }
@@ -60,6 +63,9 @@ func (p *PeriklesHandler) checkMappingForUpdates() error {
 	}
 
 	for _, service := range mapping.Spec.Services {
+		if service.Validity <= 0 || service.Created == "" {
+			continue
+		}
 		redeploy, err := calculateTimeDifference(service.Validity, service.Created)
 		if err != nil {
 			return err
@@ -208,6 +214,11 @@ func (p *PeriklesHandler) addClientToMapping(update MappingUpdate) error {
 		// Update the mapping in the cluster
 		_, err = p.Mapping.Update(mapping)
 		p.Mutex.Unlock()
+		if err == nil && update.ClientName != "" {
+			p.recordEvent("mapping.client_added", "Client added to service mapping", update.Namespace, update.ClientName, map[string]string{
+				"service": update.HostName,
+			})
+		}
 		return err
 	})
 }

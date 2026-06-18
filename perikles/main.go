@@ -105,6 +105,16 @@ func startControllers(cfg *architect.PeriklesHandler) {
 	logging.System("• Pending update processor")
 	go cfg.StartProcessingPendingUpdates()
 
+	logging.System("• Stale network policy reconciler")
+	go cfg.LoopForStaleNetworkPolicies()
+
+	logging.System(fmt.Sprintf("• Dashboard on %s", cfg.DashboardAddr))
+	go func() {
+		if err := cfg.StartDashboard(); err != nil {
+			logging.Error(fmt.Sprintf("Dashboard stopped: %v", err))
+		}
+	}()
+
 	logging.System("• ConfigMap watcher")
 	go func() {
 		if err := cfg.WatchConfigMapChanges(); err != nil {

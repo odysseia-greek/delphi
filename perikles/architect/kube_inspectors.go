@@ -2,6 +2,7 @@ package architect
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -132,6 +133,38 @@ func (p *PeriklesHandler) handlePodEvents() cache.ResourceEventHandlerFuncs {
 				}
 			}
 		},
+		DeleteFunc: func(obj interface{}) {
+			pod, ok := podFromDeleteEvent(obj)
+			if !ok {
+				logging.Error("failed to cast deleted object to Pod")
+				return
+			}
+			if !p.isManagedNamespace(pod.Namespace) {
+				return
+			}
+
+			for _, owner := range pod.OwnerReferences {
+				if owner.Kind != "Job" {
+					continue
+				}
+
+				active, err := p.jobHasActivePods(owner.Name, pod.Namespace)
+				if err != nil {
+					logging.Error(fmt.Sprintf("failed to check active pods for job %s: %v", owner.Name, err))
+					return
+				}
+				if active {
+					logging.Debug(fmt.Sprintf("job %s still has an active pod; keeping its network policies", owner.Name))
+					return
+				}
+
+				logging.System(fmt.Sprintf("job pod deleted: name=%s, job=%s, namespace=%s", pod.Name, owner.Name, pod.Namespace))
+				if err := p.cleanUpNetWorkPolicies(owner.Name, pod.Namespace); err != nil {
+					logging.Error(fmt.Sprintf("failed to clean up network policies for job %s: %v", owner.Name, err))
+				}
+				return
+			}
+		},
 	}
 }
 
@@ -163,8 +196,34 @@ func (p *PeriklesHandler) handleDeploymentEvents() cache.ResourceEventHandlerFun
 			}
 
 			logging.System(fmt.Sprintf("deploy created: name=%s, namespace=%s", deploy.Name, deploy.Namespace))
+			p.recordEvent("deployment.created", "Deployment discovered", deploy.Namespace, deploy.Name, nil)
+			if err := p.checkForAnnotations(deploy); err != nil {
+				logging.Error(err.Error())
+			}
 			err := p.checkForElasticAnnotations(deploy, nil)
 			if err != nil {
+				logging.Error(err.Error())
+			}
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldDeploy, oldOK := oldObj.(*appsv1.Deployment)
+			newDeploy, newOK := newObj.(*appsv1.Deployment)
+			if !oldOK || !newOK {
+				logging.Error("failed to cast updated object to Deployment")
+				return
+			}
+			if !p.isManagedNamespace(newDeploy.Namespace) {
+				return
+			}
+			if reflect.DeepEqual(oldDeploy.Spec.Template.Annotations, newDeploy.Spec.Template.Annotations) {
+				return
+			}
+
+			p.recordEvent("deployment.updated", "Deployment annotations changed", newDeploy.Namespace, newDeploy.Name, nil)
+			if err := p.checkForAnnotations(newDeploy); err != nil {
+				logging.Error(err.Error())
+			}
+			if err := p.checkForElasticAnnotations(newDeploy, nil); err != nil {
 				logging.Error(err.Error())
 			}
 		},
@@ -194,6 +253,7 @@ func (p *PeriklesHandler) handleDeploymentEvents() cache.ResourceEventHandlerFun
 			}
 
 			logging.System(fmt.Sprintf("deploy deleted: name=%s, namespace=%s", deploy.Name, deploy.Namespace))
+			p.recordEvent("deployment.deleted", "Deployment deleted", deploy.Namespace, deploy.Name, nil)
 			if err := p.cleanUpNetWorkPolicies(deploy.Name, deploy.Namespace); err != nil {
 				logging.Error(fmt.Sprintf("Failed to clean up network policies for %s: %v", deploy.Name, err))
 			}
@@ -233,15 +293,16 @@ func (p *PeriklesHandler) handleJobEvents() cache.ResourceEventHandlerFuncs {
 			}
 
 			logging.System(fmt.Sprintf("job created: name=%s, namespace=%s", job.Name, job.Namespace))
+			p.recordEvent("job.created", "Job discovered", job.Namespace, job.Name, nil)
 			err := p.checkForElasticAnnotations(nil, job)
 			if err != nil {
 				logging.Error(err.Error())
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			job, ok := obj.(*batchv1.Job)
+			job, ok := jobFromDeleteEvent(obj)
 			if !ok {
-				logging.Error("failed to cast obj to Deployment")
+				logging.Error("failed to cast deleted object to Job")
 				return
 			}
 
@@ -264,12 +325,39 @@ func (p *PeriklesHandler) handleJobEvents() cache.ResourceEventHandlerFuncs {
 			}
 
 			logging.System(fmt.Sprintf("job deleted: name=%s, namespace=%s", job.Name, job.Namespace))
+			p.recordEvent("job.deleted", "Job deleted", job.Namespace, job.Name, nil)
 			err := p.cleanUpNetWorkPolicies(job.Name, job.Namespace)
 			if err != nil {
 				logging.Error(err.Error())
 			}
 		},
 	}
+}
+
+func podFromDeleteEvent(obj interface{}) (*v1.Pod, bool) {
+	if pod, ok := obj.(*v1.Pod); ok {
+		return pod, true
+	}
+
+	tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+	if !ok {
+		return nil, false
+	}
+	pod, ok := tombstone.Obj.(*v1.Pod)
+	return pod, ok
+}
+
+func jobFromDeleteEvent(obj interface{}) (*batchv1.Job, bool) {
+	if job, ok := obj.(*batchv1.Job); ok {
+		return job, true
+	}
+
+	tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+	if !ok {
+		return nil, false
+	}
+	job, ok := tombstone.Obj.(*batchv1.Job)
+	return job, ok
 }
 
 func (p *PeriklesHandler) handleNamespaceEvents() cache.ResourceEventHandlerFuncs {
