@@ -2,11 +2,10 @@ package founder
 
 import (
 	"github.com/odysseia-greek/agora/plato/config"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 )
 
 func CreateNewConfig(env string) (*KleisthenesHandler, error) {
-	kube, err := kubernetes.CreateKubeClient(false)
+	kube, err := newKubeClient()
 	if err != nil {
 		return nil, err
 	}

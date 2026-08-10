@@ -16,7 +16,6 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/models"
 	"github.com/odysseia-greek/agora/plato/service"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/delphi/solon/lawgiver"
 	limenelastic "github.com/odysseia-greek/delphi/solon/limen/elastic"
 	limenkubernetes "github.com/odysseia-greek/delphi/solon/limen/kubernetes"
@@ -24,6 +23,7 @@ import (
 	"github.com/odysseia-greek/delphi/solon/logoi"
 	"github.com/odysseia-greek/delphi/solon/stoa"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -73,12 +73,12 @@ func TestRegister(t *testing.T) {
 		vaultFixtures := []string{"createSecret"}
 		mockVaultClient, err := vault.CreateMockVaultClient(vaultFixtures, mockCode)
 		assert.Nil(t, err)
-		mockKube := kubernetes.NewFakeKubeClient()
+		mockKube := limenkubernetes.NewFakeClient(namespaces, nil)
 
 		testConfig := &lawgiver.SolonHandler{
 			Elastic:          limenelastic.NewClient(mockElasticClient),
 			Vault:            limenvault.NewClient(mockVaultClient),
-			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
+			Kubernetes:       mockKube,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -105,13 +105,13 @@ func TestRegister(t *testing.T) {
 		mockCode := 200
 		mockElasticClient, err := elastic.NewMockClient(fixtureFile, mockCode)
 		assert.Nil(t, err)
-		mockKube := kubernetes.NewFakeKubeClient()
+		mockKube := limenkubernetes.NewFakeClient(namespaces, nil)
 		assert.Nil(t, err)
 
 		testConfig := &lawgiver.SolonHandler{
 			Elastic:          limenelastic.NewClient(mockElasticClient),
 			Vault:            limenvault.NewClient(nil),
-			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
+			Kubernetes:       mockKube,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -141,12 +141,12 @@ func TestRegister(t *testing.T) {
 		mockCode := 200
 		mockElasticClient, err := elastic.NewMockClient(fixtureFile, mockCode)
 		assert.Nil(t, err)
-		mockKube := kubernetes.NewFakeKubeClient()
+		mockKube := limenkubernetes.NewFakeClient(namespaces, nil)
 
 		testConfig := &lawgiver.SolonHandler{
 			Elastic:          limenelastic.NewClient(mockElasticClient),
 			Vault:            limenvault.NewClient(nil),
-			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
+			Kubernetes:       mockKube,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -176,12 +176,12 @@ func TestRegister(t *testing.T) {
 		mockCode := 502
 		mockElasticClient, err := elastic.NewMockClient(fixtureFile, mockCode)
 		assert.Nil(t, err)
-		mockKube := kubernetes.NewFakeKubeClient()
+		mockKube := limenkubernetes.NewFakeClient(namespaces, nil)
 
 		testConfig := &lawgiver.SolonHandler{
 			Elastic:          limenelastic.NewClient(mockElasticClient),
 			Vault:            limenvault.NewClient(nil),
-			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
+			Kubernetes:       mockKube,
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
 		}
@@ -209,14 +209,14 @@ func TestRegister(t *testing.T) {
 		mockCode := 200
 		mockElasticClient, err := elastic.NewMockClient(fixtureFile, mockCode)
 		assert.Nil(t, err)
-		mockKube := kubernetes.NewFakeKubeClient()
+		mockKube := limenkubernetes.NewFakeClient(namespaces, nil)
 		assert.Nil(t, err)
 		vaultClient, err := vault.NewVaultClient("localhost:239riwefj", "token", nil)
 		assert.Nil(t, err)
 
 		testConfig := &lawgiver.SolonHandler{
 			Elastic:          limenelastic.NewClient(mockElasticClient),
-			Kubernetes:       limenkubernetes.NewClient(mockKube, namespaces, nil),
+			Kubernetes:       mockKube,
 			Vault:            limenvault.NewClient(vaultClient),
 			AccessAnnotation: "odysseia-greek/access",
 			RoleAnnotation:   "odysseia-greek/role",
@@ -261,8 +261,11 @@ func performPostRequest(r http.Handler, path string, body io.Reader) *httptest.R
 	return w
 }
 
-func createPodForTest(name, ns, access, role string, client *kubernetes.KubeClient) error {
-	pod := kubernetes.TestPodObject(name, ns, access, role)
+func createPodForTest(name, ns, access, role string, client *limenkubernetes.Client) error {
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+		Name: name, Namespace: ns,
+		Annotations: map[string]string{"odysseia-greek/access": access, "odysseia-greek/role": role},
+	}}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 	_, err := client.CoreV1().Pods(ns).Create(ctx, pod, metav1.CreateOptions{})

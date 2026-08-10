@@ -20,5 +20,5 @@ func (c *Client) CreateUser(username, password string, roles []string) (bool, er
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	return c.elastic.Access().CreateUserWithContext(ctx, username, userRequest)
+	return c.elastic.Access().CreateUser(ctx, username, userRequest)
 }

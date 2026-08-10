@@ -1,11 +1,7 @@
 package founder
 
-import (
-	"github.com/odysseia-greek/agora/thales"
-)
-
 type KleisthenesHandler struct {
-	Kube            *thales.KubeClient
+	Kube            *KubeClient
 	namespace       string
 	periklesService string
 }

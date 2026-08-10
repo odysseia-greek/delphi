@@ -67,13 +67,13 @@ func (k *KleisthenesHandler) updateWebhookCA(webhookName string, caBundle []byte
 
 	logging.Debug(fmt.Sprintf("updating webhook: %s", webhookName))
 
-	webhook, err := k.Kube.AdmissionRegistrationV1().ValidatingWebhookConfigurations().Get(ctx, webhookName, metav1.GetOptions{})
+	webhook, err := k.Kube.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, webhookName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	webhook.Webhooks[0].ClientConfig.CABundle = caBundle
-	_, err = k.Kube.AdmissionRegistrationV1().ValidatingWebhookConfigurations().Update(ctx, webhook, metav1.UpdateOptions{})
+	_, err = k.Kube.AdmissionregistrationV1().ValidatingWebhookConfigurations().Update(ctx, webhook, metav1.UpdateOptions{})
 
 	logging.Debug(fmt.Sprintf("updated webhook: %s", webhookName))
 	return err

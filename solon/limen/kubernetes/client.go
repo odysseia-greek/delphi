@@ -1,28 +1,58 @@
 package kubernetes
 
 import (
-	kubernetes "github.com/odysseia-greek/agora/thales"
+	"context"
+	"os"
+	"path/filepath"
+
 	"github.com/odysseia-greek/delphi/solon/logoi"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Cleaner interface {
-	DeleteOrphan(username, podName string) error
+	DeleteOrphan(ctx context.Context, username, podName string) error
 }
 
 type Client struct {
-	kubeClient *kubernetes.KubeClient
+	kubernetes.Interface
 	namespaces logoi.Namespaces
 	cleaner    Cleaner
 }
 
-func NewClient(
-	kubeClient *kubernetes.KubeClient,
-	namespaces logoi.Namespaces,
-	cleaner Cleaner,
-) *Client {
-	return &Client{
-		kubeClient: kubeClient,
-		namespaces: namespaces,
-		cleaner:    cleaner,
+func NewClient(namespaces logoi.Namespaces, cleaner Cleaner) (*Client, error) {
+	config, err := kubeConfig()
+	if err != nil {
+		return nil, err
 	}
+	typed, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return newClient(typed, namespaces, cleaner), nil
+}
+
+func NewFakeClient(namespaces logoi.Namespaces, cleaner Cleaner) *Client {
+	return newClient(fake.NewSimpleClientset(), namespaces, cleaner)
+}
+
+func newClient(typed kubernetes.Interface, namespaces logoi.Namespaces, cleaner Cleaner) *Client {
+	return &Client{Interface: typed, namespaces: namespaces, cleaner: cleaner}
+}
+
+func kubeConfig() (*rest.Config, error) {
+	if config, err := rest.InClusterConfig(); err == nil {
+		return config, nil
+	}
+	path := os.Getenv("KUBECONFIG")
+	if path == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
+		path = filepath.Join(home, ".kube", "config")
+	}
+	return clientcmd.BuildConfigFromFlags("", path)
 }

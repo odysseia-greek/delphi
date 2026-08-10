@@ -1,98 +1,137 @@
-# Delphi <!-- omit in toc -->
+# Delphi
 
-**Delphi** holds all services that need access to **Vault** for secrets management. It provides a structured approach to handling secrets securely within the **Odysseia-Greek** ecosystem. Services within **Delphi** either fetch secrets directly from **Vault** or assist other components in managing configuration securely.
+Delphi contains the services and supporting containers used by Odysseia-Greek to provision secrets, configure Vault access, and manage Kubernetes network access.
 
-# Table of Contents <!-- omit in toc -->
+The repository is a collection of independent Go modules. There is no root `go.mod`; run Go commands from a component directory or use the root `Makefile` to operate on every module.
 
-- [Backend](#backend)
-  - [Solon - Σόλων](#solon---σόλων)
-  - [Perikles - Περικλῆς](#perikles---περικλῆς)
-- [Init Containers](#init-containers)
-  - [Kleisthenes - Κλεισθένης](#kleisthenes---κλεισθένης)
-  - [Peisistratos - Πεισίστρατος](#peisistratos---πεισίστρατος)
-  - [Periandros - Περίανδρος](#periandros---περίανδρος)
-- [Sidecar](#sidecar)
-  - [Aristides - Ἀριστείδης](#aristides---Ἀριστείδης)
+## Components
 
----
+| Component | Type | Responsibility |
+| --- | --- | --- |
+| `solon` | HTTP API | Validates workloads and brokers access to Vault and Elasticsearch. It also watches Kubernetes workloads so obsolete credentials can be cleaned up. |
+| `perikles` | Kubernetes controller | Watches workloads and configuration, maintains service mappings, TLS secrets, and Cilium network policies, and exposes a small dashboard. |
+| `aristides` | gRPC sidecar | Gives a workload a local interface for retrieving credentials through Solon. Its protobuf contract is in `aristides/proto`. |
+| `peisistratos` | Init container | Bootstraps Vault authentication, policies, and related configuration before Solon starts. |
+| `kleisthenes` | Init container | Creates the Vault and Kubernetes resources required by Perikles. |
+| `periandros` | Init container | Requests and prepares Elasticsearch credentials for a workload. |
+| `ktesias` | Integration test suite | Exercises the deployed Solon, Perikles, Vault, Elasticsearch, Kubernetes, and Cilium flow. |
 
-## Backend
+In broad terms, applications use Aristides or an init container to request credentials; Solon verifies the requesting Kubernetes workload and talks to the backing systems; Perikles reconciles the cluster resources and network access needed for that communication.
 
-### Solon - Σόλων
+## Repository layout
 
-_αὐτοὶ γὰρ οὐκ οἷοί τε ἦσαν αὐτὸ ποιῆσαι Ἀθηναῖοι: ὁρκίοισι γὰρ μεγάλοισι κατείχοντο δέκα ἔτεα χρήσεσθαι νόμοισι τοὺς ἄν σφι Σόλων θῆται_  
-_"Since the Athenians themselves could not do that, for they were bound by solemn oaths to abide for ten years by whatever laws Solon should make."_
+Each component directory contains its own:
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Ignoto%2C_c.d._solone%2C_replica_del_90_dc_ca_da_orig._greco_del_110_ac._ca%2C_6143.JPG" alt="Solon" width="200"/>
+- `go.mod` and `go.sum`
+- `Containerfile`
+- application or test code
 
-**Solon** is the **entry point for secret management** within Odysseia-Greek. It interacts directly with **Vault** to retrieve and manage secrets.
+Cluster deployment manifests and Helm charts are maintained in the separate `mykenai` repository. The local Skaffold profile in this repository refers to that repository through a relative path.
 
----
+## Development
 
-### Perikles - Περικλῆς
+### Prerequisites
 
-_τόν γε σοφώτατον οὐχ ἁμαρτήσεται σύμβουλον ἀναμείνας χρόνον._  
-_"He would yet do full well to wait for that wisest of all counsellors, Time."_
+- A Go version compatible with the `go` directive in the module being changed
+- `make`
+- A container builder for building images
+- For cluster development: Kubernetes, Helm, Skaffold, Cilium, Vault, and a checkout of the `mykenai` repository at the relative path expected by `skaffold.yaml`
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Illus0362.jpg" alt="Perikles" width="200"/>
+### Run unit tests
 
-**Perikles** is a **configuration manager and admission webhook** responsible for:
-- **Generating TLS certificates** dynamically for services.
-- **Creating CiliumNetworkPolicies (CNPs)** based on annotations.
-- **Enforcing security and access rules** across the cluster.
+Run tests for one component from its module directory:
 
----
+```sh
+cd solon
+go test ./...
+```
 
-## Init Containers
+To test every module from the repository root:
 
-### Kleisthenes - Κλεισθένης
+```sh
+for module in aristides kleisthenes ktesias peisistratos periandros perikles solon; do
+  (cd "$module" && go test ./...)
+done
+```
 
-_ὀστρακισμός_  
-**_"Ostracism," introduced by Kleisthenes._**
+`ktesias` is an integration suite and expects a configured, running cluster. It is not a standalone unit-test module.
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Cleisthenes.jpg/532px-Cleisthenes.jpg" alt="Cleisthenes" width="200"/>
+### Format and tidy all modules
 
-**Kleisthenes** is an **init container** for **Perikles**, preparing its environment and ensuring correct configurations before it starts.
+```sh
+make tidy
+```
 
----
+This runs `go mod tidy` and `go fmt ./...` in every module. Be aware that `go mod tidy` can change both `go.mod` and `go.sum`.
 
-### Peisistratos - Πεισίστρατος
+### Build a component
 
-_καὶ Πεισίστρατος μὲν ἐτυράννευε Ἀθηνέων_  
-_"So Pisistratus was sovereign of Athens."_
+Build a binary locally:
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/2/25/Ingres_-_Pisistratus_head_and_left_hand_of_Alcibiades%2C_1824-1834.jpg" alt="Pisistratus" width="200"/>
+```sh
+cd solon
+go build ./...
+```
 
-**Peisistratos** is an **init container for Solon**, ensuring that necessary configurations are in place before the service starts.
+Build its production container image from the repository root:
 
----
+```sh
+docker build --target prod --build-arg project_name=solon -t solon:dev solon
+```
 
-### Periandros - Περίανδρος
+Replace `solon` with the component being built. `ktesias` produces a test binary rather than a service binary.
 
-_Περίανδρος δὲ ἦν Κυψέλου παῖς οὗτος ὁ τῷ Θρασυβούλῳ τὸ χρηστήριον μηνύσας· ἐτυράννευε δὲ ὁ Περίανδρος Κορίνθου._  
-_"Periander, who disclosed the oracle's answer to Thrasybulus, was the son of Cypselus and sovereign of Corinth."_
+### Local cluster workflow
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/4/48/Periander_Pio-Clementino_Inv276.jpg" alt="Periandros" width="200"/>
+The current Skaffold configuration contains the `alexandros` profile for Solon and targets the `k3d-odysseia` Kubernetes context:
 
-**Periandros** is an **init container for all services that require an Elasticsearch config through Solon**, ensuring that configuration data is available before the main service starts.
+```sh
+skaffold dev --profile alexandros
+```
 
----
+Before running it, verify the chart and values paths in `skaffold.yaml`; they are relative to the layout of the wider Odysseia-Greek workspace.
 
-## Sidecar
+## Dependency upgrades
 
-### Aristides - Ἀριστείδης
+Dependencies must be upgraded per module. A practical sequence is:
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Aristides_and_the_Citizens.jpg/1024px-Aristides_and_the_Citizens.jpg" alt="Aristides" width="200"/>
+1. Upgrade one component at a time with `go get` from that component's directory.
+2. Run `go mod tidy` and `go test ./...` in that module.
+3. Build its container image to catch toolchain or base-image issues.
+4. Upgrade shared libraries and tightly coupled Kubernetes packages together where required.
+5. Run the `ktesias` suite against a deployed cluster after the individual modules pass.
 
-**"Aristides the Just" was a statesman and general, known for his integrity and role in shaping Athenian democracy.**
+Useful inspection commands:
 
-In Delphi, **Aristides** acts as an **ambassador-like sidecar**, responsible for:
-- **Fetching secrets for services** by retrieving them from **Solon**, which in turn pulls from **Vault**.
-- **Ensuring secure access** to credentials and other sensitive configurations.
-- **Acting as a secure proxy** between services and Vault, reducing direct interactions.
+```sh
+cd solon
+go list -m -u all
+go mod graph
+```
 
-This sidecar ensures that applications have a **consistent, reliable, and secure** way to retrieve their secrets without interacting directly with Vault.
+The Kubernetes and Cilium dependency trees are large, particularly in `perikles` and `ktesias`. Upgrade those deliberately and keep their compatible package versions aligned rather than applying a repository-wide version bump blindly.
 
----
+## Configuration
 
-With **Aristides**, the Delphi stack maintains its **theme of democratic statesmen and rulers**, reinforcing the **secure, structured, and governance-driven** approach to secrets management.
+The services are designed to run in Kubernetes and obtain most configuration from environment variables and mounted TLS material. Common settings include `NAMESPACE`, `POD_NAME`, `PORT`, and the TLS-related variables supplied by the shared Agora packages.
+
+Component-specific settings visible in this repository include:
+
+- Solon: `PORT`, `CERT_ROOT`, `SOLON_MANAGED_NAMESPACES`
+- Perikles: `CRD_NAME`, `TLS_FILES`, `L7_MODE`, `CONFIGMAP_NAME`, `VAULT_NAMESPACE`, `ELASTIC_NAMESPACE`, `WATCHED_NAMESPACES`, `DASHBOARD_ADDR`
+- Aristides: `PORT`
+- Peisistratos and Kleisthenes: `ENV`
+- Periandros: workload role, index/access, pod, namespace, and tracing settings supplied through the shared configuration package
+
+For deployment defaults and secret mounts, treat the Helm charts in `mykenai` as the source of truth.
+
+## API and custom resource references
+
+- Solon's OpenAPI definition: `solon/docs/solon.yaml`
+- Aristides gRPC definition: `aristides/proto/aristides.proto`
+- Perikles service-mapping CRD: `perikles/pkg/service_mapping/crd/v1alpha`
+- Service-mapping notes: `perikles/pkg/service_mapping/README.md`
+
+## License
+
+See [LICENSE](LICENSE).

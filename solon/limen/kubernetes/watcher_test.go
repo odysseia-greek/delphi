@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"testing"
 
 	"github.com/odysseia-greek/delphi/solon/logoi"
@@ -14,7 +15,7 @@ type cleanerSpy struct {
 	deletedPods  []string
 }
 
-func (c *cleanerSpy) DeleteOrphan(username, podName string) error {
+func (c *cleanerSpy) DeleteOrphan(_ context.Context, username, podName string) error {
 	c.deletedUsers = append(c.deletedUsers, username)
 	c.deletedPods = append(c.deletedPods, podName)
 	return nil

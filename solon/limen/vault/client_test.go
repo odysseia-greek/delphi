@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -22,17 +23,17 @@ type vaultSpy struct {
 	deletePolicyCalls []string
 }
 
-func (v *vaultSpy) DeleteSecret(name string) error {
+func (v *vaultSpy) DeleteSecret(_ context.Context, name string) error {
 	v.deleteSecretCalls = append(v.deleteSecretCalls, name)
 	return v.deleteSecretErr
 }
 
-func (v *vaultSpy) RemoveSecret(name string) error {
+func (v *vaultSpy) RemoveSecret(_ context.Context, name string) error {
 	v.removeSecretCalls = append(v.removeSecretCalls, name)
 	return v.removeSecretErr
 }
 
-func (v *vaultSpy) DeletePolicy(policyName string) (*api.Secret, error) {
+func (v *vaultSpy) DeletePolicy(_ context.Context, policyName string) (*api.Secret, error) {
 	v.deletePolicyCalls = append(v.deletePolicyCalls, policyName)
 	return v.deletePolicyResp, v.deletePolicyErr
 }
@@ -41,7 +42,7 @@ func TestDeleteOrphan_CleansVaultResources(t *testing.T) {
 	vault := &vaultSpy{}
 	client := NewClient(vault)
 
-	err := client.DeleteOrphan("my-pod-123")
+	err := client.DeleteOrphan(context.Background(), "my-pod-123")
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"my-pod-123"}, vault.deleteSecretCalls)
 	assert.Equal(t, []string{"my-pod-123"}, vault.removeSecretCalls)
@@ -56,7 +57,7 @@ func TestDeleteOrphan_ContinuesOnClientErrors(t *testing.T) {
 	}
 	client := NewClient(vault)
 
-	err := client.DeleteOrphan("my-pod")
+	err := client.DeleteOrphan(context.Background(), "my-pod")
 	assert.NoError(t, err)
 	assert.Len(t, vault.deleteSecretCalls, 1)
 	assert.Len(t, vault.removeSecretCalls, 1)

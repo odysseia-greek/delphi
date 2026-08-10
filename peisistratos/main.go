@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"strings"
@@ -28,12 +29,13 @@ func main() {
 
 	logging.System("creating config")
 
-	handler, err := architect.CreateNewConfig()
+	ctx := context.Background()
+	handler, err := architect.CreateNewConfig(ctx)
 	if err != nil {
 		log.Fatal("death has found me")
 	}
 
-	err = handler.InitVault()
+	err = handler.InitVault(ctx)
 	if err != nil {
 		logging.Error(err.Error())
 		os.Exit(1)

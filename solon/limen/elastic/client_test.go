@@ -15,35 +15,19 @@ type accessSpy struct {
 	deletedUserName []string
 }
 
-func (a *accessSpy) CreateRole(name string, roleRequest elasticmodels.CreateRoleRequest) (bool, error) {
+func (a *accessSpy) CreateRole(ctx context.Context, name string, roleRequest elasticmodels.CreateRoleRequest) (bool, error) {
 	return false, nil
 }
 
-func (a *accessSpy) CreateRoleWithContext(ctx context.Context, name string, roleRequest elasticmodels.CreateRoleRequest) (bool, error) {
+func (a *accessSpy) CreateUser(ctx context.Context, name string, userCreation elasticmodels.CreateUserRequest) (bool, error) {
 	return false, nil
 }
 
-func (a *accessSpy) CreateUser(name string, userCreation elasticmodels.CreateUserRequest) (bool, error) {
-	return false, nil
-}
-
-func (a *accessSpy) CreateUserWithContext(ctx context.Context, name string, userCreation elasticmodels.CreateUserRequest) (bool, error) {
-	return false, nil
-}
-
-func (a *accessSpy) ListUsers() ([]string, error) {
+func (a *accessSpy) ListUsers(ctx context.Context) ([]string, error) {
 	return nil, nil
 }
 
-func (a *accessSpy) ListUsersWithContext(ctx context.Context) ([]string, error) {
-	return nil, nil
-}
-
-func (a *accessSpy) DeleteUser(name string) (bool, error) {
-	return a.DeleteUserWithContext(context.Background(), name)
-}
-
-func (a *accessSpy) DeleteUserWithContext(ctx context.Context, name string) (bool, error) {
+func (a *accessSpy) DeleteUser(ctx context.Context, name string) (bool, error) {
 	a.deletedUserName = append(a.deletedUserName, name)
 	return a.deleteUserErr == nil, a.deleteUserErr
 }

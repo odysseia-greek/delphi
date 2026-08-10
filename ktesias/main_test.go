@@ -8,7 +8,6 @@ import (
 	"github.com/cucumber/godog/colors"
 	"github.com/google/uuid"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/delphi/aristides/diplomat"
 	pb "github.com/odysseia-greek/delphi/aristides/proto"
 	"os"
 	"strings"
@@ -145,12 +144,12 @@ func TestMain(m *testing.M) {
 		Options:              &opts,
 	}.Run()
 
-	ambassador, err := diplomat.NewClientAmbassador(diplomat.DEFAULTADDRESS)
+	ambassador, err := newAristidesClient(aristidesAddress)
 	if err != nil {
 		logging.Error(fmt.Sprintf("Unable to create ambassador client: %v", err))
 	}
 
-	healthy := ambassador.WaitForHealthyState()
+	healthy := ambassador.waitForHealthyState(context.Background())
 	if !healthy {
 		logging.Info("aristides service not ready - restarting seems the only option")
 		os.Exit(1)

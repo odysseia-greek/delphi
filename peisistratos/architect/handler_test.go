@@ -1,16 +1,16 @@
 package architect
 
 import (
+	"context"
 	"github.com/hashicorp/vault/api"
 	"github.com/odysseia-greek/agora/diogenes"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 )
 
 func TestHandler(t *testing.T) {
-	fakeKube := kubernetes.NewFakeKubeClient()
+	fakeKube := newFakeKubeClient()
 
 	t.Run("CreateConfigForGCP", func(t *testing.T) {
 		ring := "TEST_RING"
@@ -41,7 +41,7 @@ func TestHandler(t *testing.T) {
 		}
 
 		init := &api.InitResponse{Keys: []string{"test"}}
-		err = handler.unsealVault(init)
+		err = handler.unsealVault(context.Background(), init)
 		assert.Nil(t, err)
 	})
 
@@ -57,7 +57,7 @@ func TestHandler(t *testing.T) {
 		}
 
 		init := &api.InitResponse{Keys: []string{"test"}}
-		err = handler.unsealVault(init)
+		err = handler.unsealVault(context.Background(), init)
 		assert.Nil(t, err)
 	})
 }

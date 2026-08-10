@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/odysseia-greek/agora/plato/certificates"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -20,7 +20,7 @@ func setupTestEnvironment() (*PeriklesHandler, string, string, string, string, s
 	cert, _ := certificates.NewCertGeneratorClient(organizations, validityCa)
 	_ = cert.InitCa()
 
-	fakeKube := kubernetes.NewFakeKubeClient()
+	fakeKube := newFakeKubeClient()
 	mapping, _ := service_mapping.NewFakeServiceMappingImpl()
 
 	handler := &PeriklesHandler{
@@ -105,7 +105,7 @@ func TestCheckMappingForUpdates(t *testing.T) {
 		err := handler.addHostToMapping(update)
 		assert.Nil(t, err)
 
-		deploy := kubernetes.TestDeploymentObject(serviceName, handler.Namespace)
+		deploy := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: handler.Namespace}}
 		_, err = handler.Kube.AppsV1().Deployments(handler.Namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
 		assert.Nil(t, err)
 

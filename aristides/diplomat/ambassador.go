@@ -34,7 +34,7 @@ func (a *AmbassadorServiceImpl) GetSecret(ctx context.Context, request *pb.Vault
 	logging.Debug(fmt.Sprintf("setting token: %s", generatedToken))
 	a.Vault.SetOnetimeToken(generatedToken)
 	logging.Debug(fmt.Sprintf("gathering secret: %s", a.PodName))
-	secret, err := a.Vault.GetSecret(a.PodName)
+	secret, err := a.Vault.GetSecret(ctx, a.PodName)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (a *AmbassadorServiceImpl) GetNamedSecret(ctx context.Context, request *pb.
 	a.Vault.SetOnetimeToken(oneTimeToken)
 
 	logging.Debug(fmt.Sprintf("gathering secret: %s", request.PodName))
-	secret, err := a.Vault.GetSecret(request.PodName)
+	secret, err := a.Vault.GetSecret(ctx, request.PodName)
 	if err != nil {
 		return nil, err
 	}

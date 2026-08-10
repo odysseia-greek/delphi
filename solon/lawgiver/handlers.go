@@ -51,7 +51,7 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 	requestID := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestID)
 
-	vaultHealth, _ := s.Vault.Health()
+	vaultHealth, _ := s.Vault.Health(req.Context())
 	elasticHealth := s.Elastic.HealthInfo()
 	dbHealth := models.DatabaseHealth{
 		Healthy:       elasticHealth.Healthy,
@@ -92,7 +92,7 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	podVaultPath := fmt.Sprintf("configs/data/%s", pod.Name)
 	policyRules := fmt.Sprintf("\npath \"%s\" {\n  capabilities = [\"read\", \"list\"]\n}\n", podVaultPath)
 
-	err = s.Vault.WritePolicy(policyName, []byte(policyRules))
+	err = s.Vault.WritePolicy(req.Context(), policyName, []byte(policyRules))
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
@@ -103,7 +103,7 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	token, err := s.Vault.CreateOneTimeToken([]string{policyName})
+	token, err := s.Vault.CreateOneTimeToken(req.Context(), []string{policyName})
 	if err != nil {
 		logging.Error(err.Error())
 		e := models.ValidationError{
@@ -177,7 +177,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 
 	logging.Debug(fmt.Sprintf("created new user: %s from pod: %s", creationRequest.Username, pod.Name))
 	logging.Debug(fmt.Sprintf("created secret: %s", pod.Name))
-	secretCreated, err := s.Vault.CreateElasticSecret(
+	secretCreated, err := s.Vault.CreateElasticSecret(req.Context(),
 		pod.Name,
 		creationRequest.Username,
 		password,

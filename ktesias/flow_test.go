@@ -10,7 +10,6 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/service"
-	"github.com/odysseia-greek/delphi/aristides/diplomat"
 	pb "github.com/odysseia-greek/delphi/aristides/proto"
 	"google.golang.org/grpc/metadata"
 	"os"
@@ -19,12 +18,12 @@ import (
 )
 
 func (l *OdysseiaFixture) aristidesIsAskedForTheCurrentConfig() error {
-	ambassador, err := diplomat.NewClientAmbassador(diplomat.DEFAULTADDRESS)
+	ambassador, err := newAristidesClient(aristidesAddress)
 	if err != nil {
 		return err
 	}
 
-	healthy := ambassador.WaitForHealthyState()
+	healthy := ambassador.waitForHealthyState(l.ctx)
 	if !healthy {
 		logging.Info("aristides service not ready - restarting seems the only option")
 		os.Exit(1)
@@ -81,7 +80,7 @@ func (l *OdysseiaFixture) aCallIsMadeToAnIndexNotPartOfTheAnnotations() error {
 
 	query := elasticClientLocal.Builder().MatchAll()
 
-	_, err := elasticClientLocal.Query().Match("thisisnotadrakoncreatedindex", query)
+	_, err := elasticClientLocal.Query().Match(l.ctx, "thisisnotadrakoncreatedindex", query)
 	if err != nil {
 		if strings.Contains(err.Error(), "401") {
 			l.ctx = context.WithValue(l.ctx, ElasticResponseCode, 401)
@@ -106,7 +105,7 @@ func (l *OdysseiaFixture) anElasticClientIsCreatedWithTheOneTimeTokenThatWasCrea
 	}
 
 	l.Vault.SetOnetimeToken(oneTimeToken)
-	secret, err := l.Vault.GetSecret(l.PodName)
+	secret, err := l.Vault.GetSecret(l.ctx, l.PodName)
 	if err != nil {
 		return err
 	}
@@ -147,7 +146,7 @@ func (l *OdysseiaFixture) aCallIsMadeToTheCorrectIndexWithTheCorrectAction() err
 
 	query := elasticClientLocal.Builder().MatchAll()
 
-	response, err := elasticClientLocal.Query().Match(envAccess, query)
+	response, err := elasticClientLocal.Query().Match(l.ctx, envAccess, query)
 	if err != nil {
 		return err
 	}

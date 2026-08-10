@@ -197,7 +197,7 @@ func (l *OdysseiaFixture) theTokenFromTheActualPodnameIsValid() error {
 	}
 
 	l.Vault.SetOnetimeToken(oneTimeToken)
-	secret, err := l.Vault.GetSecret(l.PodName)
+	secret, err := l.Vault.GetSecret(l.ctx, l.PodName)
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (l *OdysseiaFixture) theTokenFromTheMismatchedPodnameIsNotValid() error {
 	fakePodName := l.ctx.Value(FakePodName).(string)
 
 	l.Vault.SetOnetimeToken(oneTimeToken)
-	_, err := l.Vault.GetSecret(fakePodName)
+	_, err := l.Vault.GetSecret(l.ctx, fakePodName)
 	if err == nil {
 		return fmt.Errorf("expected pod name to be invalid")
 	}
@@ -243,13 +243,13 @@ func (l *OdysseiaFixture) theTokensAreNotUsableTwice() error {
 	fakeToken := l.ctx.Value(TokenContext).(string)
 
 	l.Vault.SetOnetimeToken(oneTimeToken)
-	_, err := l.Vault.GetSecret(l.PodName)
+	_, err := l.Vault.GetSecret(l.ctx, l.PodName)
 	if err == nil {
 		return fmt.Errorf("expected token to be unusable")
 	}
 
 	l.Vault.SetOnetimeToken(fakeToken)
-	_, err = l.Vault.GetSecret(l.PodName)
+	_, err = l.Vault.GetSecret(l.ctx, l.PodName)
 	if err == nil {
 		return fmt.Errorf("expected token to be unusable")
 	}

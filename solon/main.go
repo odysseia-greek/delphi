@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/agora/plato/tlsmanager"
 	"github.com/odysseia-greek/delphi/solon/lawgiver"
@@ -79,7 +78,7 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-func startHTTPServer(port string, srv *mux.Router) {
+func startHTTPServer(port string, srv http.Handler) {
 	logging.System("Starting HTTP server...")
 	if err := http.ListenAndServe(port, srv); err != nil {
 		logging.Error(fmt.Sprintf("HTTP server error: %v", err))
@@ -87,7 +86,7 @@ func startHTTPServer(port string, srv *mux.Router) {
 	}
 }
 
-func startTLSServer(port string, srv *mux.Router) {
+func startTLSServer(port string, srv http.Handler) {
 	gracePeriod := 1 * time.Hour
 	pollInterval := 5 * time.Minute
 
