@@ -1,5 +1,7 @@
 package vault
 
-func (c *Client) WritePolicy(policyName string, policyRules []byte) error {
-	return c.vault.WritePolicy(policyName, policyRules)
+import "context"
+
+func (c *Client) WritePolicy(ctx context.Context, policyName string, policyRules []byte) error {
+	return c.vault.WritePolicy(ctx, policyName, policyRules)
 }

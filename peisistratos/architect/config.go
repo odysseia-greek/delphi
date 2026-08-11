@@ -1,16 +1,17 @@
 package architect
 
 import (
+	"context"
+
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/config"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 	"os"
 )
 
-func CreateNewConfig() (*PeisistratosHandler, error) {
+func CreateNewConfig(ctx context.Context) (*PeisistratosHandler, error) {
 	env := os.Getenv("ENV")
 
-	vault, err := diogenes.CreateVaultClient(true)
+	vault, err := diogenes.CreateVaultClient(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -18,7 +19,7 @@ func CreateNewConfig() (*PeisistratosHandler, error) {
 	podName := config.ParsedPodNameFromEnv()
 	ns := config.StringFromEnv(config.EnvNamespace, config.DefaultNamespace)
 
-	kube, err := kubernetes.CreateKubeClient(false)
+	kube, err := newKubeClient()
 	if err != nil {
 		return nil, err
 	}

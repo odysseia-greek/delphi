@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -8,20 +9,15 @@ import (
 	"github.com/odysseia-greek/agora/plato/logging"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
 func (c *Client) StartWatching() error {
-	if c == nil || c.kubeClient == nil {
+	if c == nil || c.Interface == nil {
 		return fmt.Errorf("limen client is not initialized with a kube client")
 	}
 
-	clientset, err := kubernetes.NewForConfig(c.kubeClient.RestConfig())
-	if err != nil {
-		return err
-	}
-	factory := informers.NewSharedInformerFactory(clientset, 30*time.Second)
+	factory := informers.NewSharedInformerFactory(c, 30*time.Second)
 
 	// Watch Pods and Deployments
 	podInformer := factory.Core().V1().Pods().Informer()
@@ -64,7 +60,7 @@ func (c *Client) handlePodWatchEvents() cache.ResourceEventHandlerFuncs {
 					return
 				}
 				username := normalizeUsername(pod.Name)
-				err := c.cleaner.DeleteOrphan(username, pod.Name)
+				err := c.cleaner.DeleteOrphan(context.Background(), username, pod.Name)
 				if err != nil {
 					logging.Error(err.Error())
 				}

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
-	"github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping"
 )
 
@@ -15,7 +14,7 @@ type PeriklesHandler struct {
 	TLSCheckTimer      time.Duration
 	ReconcileTimer     time.Duration
 	PendingUpdates     map[string][]MappingUpdate
-	Kube               *thales.KubeClient
+	Kube               *KubeClient
 	Mapping            service_mapping.ServiceMapping
 	CiliumClient       versioned.Interface
 	RuleSet            []CnpRuleSet

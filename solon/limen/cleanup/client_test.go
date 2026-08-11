@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -22,7 +23,7 @@ type vaultSpy struct {
 	podNames []string
 }
 
-func (v *vaultSpy) DeleteOrphan(podName string) error {
+func (v *vaultSpy) DeleteOrphan(_ context.Context, podName string) error {
 	v.podNames = append(v.podNames, podName)
 	return v.err
 }
@@ -32,7 +33,7 @@ func TestDeleteOrphan_DeletesFromBothBackends(t *testing.T) {
 	vault := &vaultSpy{}
 	client := NewClient(elastic, vault)
 
-	err := client.DeleteOrphan("my123", "my-pod-123")
+	err := client.DeleteOrphan(context.Background(), "my123", "my-pod-123")
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"my123"}, elastic.usernames)
 	assert.Equal(t, []string{"my-pod-123"}, vault.podNames)
@@ -43,7 +44,7 @@ func TestDeleteOrphan_ReturnsCombinedErrors(t *testing.T) {
 	vault := &vaultSpy{err: errors.New("vault failed")}
 	client := NewClient(elastic, vault)
 
-	err := client.DeleteOrphan("my123", "my-pod-123")
+	err := client.DeleteOrphan(context.Background(), "my123", "my-pod-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "elastic failed")
 	assert.Contains(t, err.Error(), "vault failed")

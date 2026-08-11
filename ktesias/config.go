@@ -8,14 +8,13 @@ import (
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/randomizer"
 	"github.com/odysseia-greek/agora/plato/service"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 )
 
 type OdysseiaFixture struct {
 	ctx              context.Context
 	client           service.OdysseiaClient
 	randomizer       randomizer.Random
-	Kube             *kubernetes.KubeClient
+	Kube             *KubeClient
 	CiliumClient     *versioned.Clientset
 	Vault            diogenes.Client
 	Namespace        string
@@ -24,6 +23,7 @@ type OdysseiaFixture struct {
 }
 
 func New() (*OdysseiaFixture, error) {
+	ctx := context.Background()
 	svc, err := config.CreateOdysseiaClient()
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func New() (*OdysseiaFixture, error) {
 	ns := config.StringFromEnv(config.EnvNamespace, "delphi")
 	podName := config.StringFromEnv(config.EnvPodName, config.DefaultPodname)
 
-	kube, err := kubernetes.CreateKubeClient(false)
+	kube, err := newKubeClient()
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func New() (*OdysseiaFixture, error) {
 		return nil, err
 	}
 
-	vault, err := diogenes.CreateVaultClient(true)
+	vault, err := diogenes.CreateVaultClient(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func New() (*OdysseiaFixture, error) {
 
 	return &OdysseiaFixture{
 		client:           svc,
-		ctx:              context.Background(),
+		ctx:              ctx,
 		randomizer:       randomizerClient,
 		Kube:             kube,
 		Namespace:        ns,

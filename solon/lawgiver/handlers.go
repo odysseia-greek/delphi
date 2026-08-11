@@ -51,7 +51,10 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 	requestID := req.Header.Get(plato.HeaderKey)
 	w.Header().Set(plato.HeaderKey, requestID)
 
-	vaultHealth, _ := s.Vault.Health()
+	vaultHealth, err := s.Vault.Health(req.Context())
+	if err != nil {
+		logging.Error(fmt.Sprintf("requestId=%s operation=%q error=%v", requestID, "vaultHealth", err))
+	}
 	elasticHealth := s.Elastic.HealthInfo()
 	dbHealth := models.DatabaseHealth{
 		Healthy:       elasticHealth.Healthy,
@@ -68,23 +71,17 @@ func (s *SolonHandler) Health(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Request) {
+	requestID := req.Header.Get(plato.HeaderKey)
+	w.Header().Set(plato.HeaderKey, requestID)
+
 	pod, err := s.Kubernetes.VerifyRequestOriginIP(req.RemoteAddr)
 	if err != nil {
-		logging.Error(err.Error())
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages:   []models.ValidationMessages{{Field: "verifying requestIP with a pod", Message: err.Error()}},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "verifying requestIP with a pod", requestID, err)
 		return
 	}
 
 	if pod == nil {
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages:   []models.ValidationMessages{{Field: "listPods", Message: "no pods could be found"}},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "listPods", requestID, fmt.Errorf("no pods could be found"))
 		return
 	}
 
@@ -92,25 +89,15 @@ func (s *SolonHandler) CreateOneTimeToken(w http.ResponseWriter, req *http.Reque
 	podVaultPath := fmt.Sprintf("configs/data/%s", pod.Name)
 	policyRules := fmt.Sprintf("\npath \"%s\" {\n  capabilities = [\"read\", \"list\"]\n}\n", podVaultPath)
 
-	err = s.Vault.WritePolicy(policyName, []byte(policyRules))
+	err = s.Vault.WritePolicy(req.Context(), policyName, []byte(policyRules))
 	if err != nil {
-		logging.Error(err.Error())
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages:   []models.ValidationMessages{{Field: "creating policy", Message: err.Error()}},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "creating policy", requestID, err)
 		return
 	}
 
-	token, err := s.Vault.CreateOneTimeToken([]string{policyName})
+	token, err := s.Vault.CreateOneTimeToken(req.Context(), []string{policyName})
 	if err != nil {
-		logging.Error(err.Error())
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages:   []models.ValidationMessages{{Field: "getting token", Message: err.Error()}},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "getting token", requestID, err)
 		return
 	}
 
@@ -129,36 +116,21 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 
 	pod, err := s.Kubernetes.VerifyRequestOriginIP(req.RemoteAddr)
 	if err != nil {
-		logging.Error(err.Error())
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages:   []models.ValidationMessages{{Field: "verifying requestIP with a pod", Message: err.Error()}},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "verifying requestIP with a pod", requestID, err)
+		return
+	}
+	if pod == nil {
+		s.handleValidationError(w, "verifying requestIP with a pod", requestID, fmt.Errorf("no pod found for request origin %s", req.RemoteAddr))
 		return
 	}
 
 	if pod.Name != creationRequest.PodName {
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{{
-				Field:   "creationRequest.Podname",
-				Message: fmt.Sprintf("illegal action detected: %s requested but podname is %s", creationRequest.PodName, pod.Name),
-			}},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "creationRequest.Podname", requestID, fmt.Errorf("illegal action detected: %s requested but podname is %s", creationRequest.PodName, pod.Name))
 		return
 	}
 
 	if !s.areValidAnnotations(pod.Annotations, &creationRequest) {
-		e := models.ValidationError{
-			ErrorModel: models.ErrorModel{UniqueCode: uuid.New().String()},
-			Messages: []models.ValidationMessages{{
-				Field:   "annotations",
-				Message: fmt.Sprintf("illegal action detected: %s requested invalid annotations", pod.Name),
-			}},
-		}
-		middleware.ResponseWithJson(w, e)
+		s.handleValidationError(w, "annotations", requestID, fmt.Errorf("illegal action detected: %s requested invalid annotations", pod.Name))
 		return
 	}
 
@@ -175,9 +147,8 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	logging.Debug(fmt.Sprintf("created new user: %s from pod: %s", creationRequest.Username, pod.Name))
-	logging.Debug(fmt.Sprintf("created secret: %s", pod.Name))
-	secretCreated, err := s.Vault.CreateElasticSecret(
+	logging.Debug(fmt.Sprintf("requestId=%s operation=createUser pod=%s username=%s created=%t", requestID, pod.Name, creationRequest.Username, userCreated))
+	secretCreated, err := s.Vault.CreateElasticSecret(req.Context(),
 		pod.Name,
 		creationRequest.Username,
 		password,
@@ -187,6 +158,7 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 		s.handleValidationError(w, "createSecret", requestID, err)
 		return
 	}
+	logging.Debug(fmt.Sprintf("requestId=%s operation=createSecret pod=%s created=%t", requestID, pod.Name, secretCreated))
 
 	middleware.ResponseWithCustomCode(w, http.StatusCreated, models.SolonResponse{
 		SecretCreated: secretCreated,
@@ -195,6 +167,11 @@ func (s *SolonHandler) RegisterService(w http.ResponseWriter, req *http.Request)
 }
 
 func (s *SolonHandler) handleValidationError(w http.ResponseWriter, field, requestID string, err error) {
+	if requestID == "" {
+		requestID = uuid.New().String()
+	}
+	w.Header().Set(plato.HeaderKey, requestID)
+	logging.Error(fmt.Sprintf("requestId=%s operation=%q error=%v", requestID, field, err))
 	e := models.ValidationError{
 		ErrorModel: models.ErrorModel{UniqueCode: requestID},
 		Messages:   []models.ValidationMessages{{Field: field, Message: err.Error()}},

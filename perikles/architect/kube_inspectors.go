@@ -12,20 +12,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
 // StartWatching starts shared informers for pods, deployments, jobs, and namespaces.
 // It blocks forever (until stopCh is closed).
 func (p *PeriklesHandler) StartWatching() error {
-	clientset, err := kubernetes.NewForConfig(p.Kube.RestConfig())
-	if err != nil {
-		return err
-	}
-
 	// Resync is fine; real-time events still come via watch.
-	factory := informers.NewSharedInformerFactory(clientset, 30*time.Second)
+	factory := informers.NewSharedInformerFactory(p.Kube, 30*time.Second)
 
 	podInformer := factory.Core().V1().Pods().Informer()
 	deployInformer := factory.Apps().V1().Deployments().Informer()

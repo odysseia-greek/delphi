@@ -1,6 +1,10 @@
 package vault
 
-import "github.com/odysseia-greek/agora/diogenes"
+import (
+	"context"
+
+	"github.com/odysseia-greek/agora/diogenes"
+)
 
 type Client struct {
 	vault diogenes.Client
@@ -12,6 +16,6 @@ func NewClient(vault diogenes.Client) *Client {
 	}
 }
 
-func (c *Client) Health() (bool, error) {
-	return c.vault.Health()
+func (c *Client) Health(ctx context.Context) (bool, error) {
+	return c.vault.Health(ctx)
 }

@@ -1,16 +1,20 @@
 package vault
 
-import "github.com/odysseia-greek/agora/diogenes"
+import (
+	"context"
 
-func (c *Client) CreateOneTimeToken(policies []string) (string, error) {
-	return c.vault.CreateOneTimeToken(policies)
+	"github.com/odysseia-greek/agora/diogenes"
+)
+
+func (c *Client) CreateOneTimeToken(ctx context.Context, policies []string) (string, error) {
+	return c.vault.CreateOneTimeToken(ctx, policies)
 }
 
-func (c *Client) CreateSecret(podName string, payload []byte) (bool, error) {
-	return c.vault.CreateNewSecret(podName, payload)
+func (c *Client) CreateSecret(ctx context.Context, podName string, payload []byte) (bool, error) {
+	return c.vault.CreateNewSecret(ctx, podName, payload)
 }
 
-func (c *Client) CreateElasticSecret(podName, username, password, elasticCert string) (bool, error) {
+func (c *Client) CreateElasticSecret(ctx context.Context, podName, username, password, elasticCert string) (bool, error) {
 	createRequest := diogenes.CreateSecretRequest{
 		Data: diogenes.ElasticConfigVault{
 			Username:    username,
@@ -24,5 +28,5 @@ func (c *Client) CreateElasticSecret(podName, username, password, elasticCert st
 		return false, err
 	}
 
-	return c.CreateSecret(podName, payload)
+	return c.CreateSecret(ctx, podName, payload)
 }

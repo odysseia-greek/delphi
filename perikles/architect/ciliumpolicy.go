@@ -392,7 +392,38 @@ func (p *PeriklesHandler) resolveAppSelectorName(objName, namespace, kubeType st
 		if err != nil {
 			return "", err
 		}
-		labels = job.Labels
+		if app := appLabel(job.Spec.Template.Labels); app != "" {
+			return app, nil
+		}
+		if app := appLabel(job.Labels); app != "" {
+			return app, nil
+		}
+
+		for _, owner := range job.OwnerReferences {
+			if owner.Kind != "CronJob" {
+				continue
+			}
+
+			cronJob, err := p.Kube.BatchV1().CronJobs(namespace).Get(ctx, owner.Name, metav1.GetOptions{})
+			if err != nil {
+				return "", fmt.Errorf("resolve CronJob %s/%s for Job %s: %w", namespace, owner.Name, objName, err)
+			}
+
+			labelSets := []map[string]string{
+				cronJob.Spec.JobTemplate.Spec.Template.Labels,
+				cronJob.Spec.JobTemplate.Labels,
+				cronJob.Labels,
+			}
+			for _, cronJobLabels := range labelSets {
+				if app := appLabel(cronJobLabels); app != "" {
+					return app, nil
+				}
+			}
+
+			return cronJob.Name, nil
+		}
+
+		return objName, nil
 
 	default:
 		return "", fmt.Errorf("unsupported kubeType %q", kubeType)
@@ -403,6 +434,13 @@ func (p *PeriklesHandler) resolveAppSelectorName(objName, namespace, kubeType st
 	}
 
 	return objName, nil
+}
+
+func appLabel(labels map[string]string) string {
+	if app, ok := labels["app"]; ok {
+		return strings.TrimSpace(app)
+	}
+	return ""
 }
 
 // Helper function to check if a Service selector matches Deployment labels

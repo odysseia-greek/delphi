@@ -3,7 +3,6 @@ package architect
 import (
 	"github.com/cilium/cilium/pkg/k8s/client/clientset/versioned"
 	"github.com/odysseia-greek/agora/plato/config"
-	"github.com/odysseia-greek/agora/thales"
 	"github.com/odysseia-greek/delphi/perikles/pkg/service_mapping"
 
 	"os"
@@ -23,7 +22,7 @@ type MappingUpdate struct {
 }
 
 func CreateNewConfig() (*PeriklesHandler, error) {
-	kube, err := thales.CreateKubeClient(false)
+	kube, err := newKubeClient()
 	if err != nil {
 		return nil, err
 	}

@@ -3,13 +3,13 @@ package lawgiver
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/odysseia-greek/agora/aristoteles"
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
-	kubernetes "github.com/odysseia-greek/agora/thales"
 	aristophanes "github.com/odysseia-greek/attike/aristophanes/comedy"
 	arv1 "github.com/odysseia-greek/attike/aristophanes/gen/go/v1"
 	limencleanup "github.com/odysseia-greek/delphi/solon/limen/cleanup"
@@ -33,17 +33,16 @@ type Config struct {
 }
 
 func CreateNewConfig(ctx context.Context) (*Config, error) {
-	vault, err := diogenes.CreateVaultClient(true)
+	if err := validateVaultAuthConfig(); err != nil {
+		return nil, err
+	}
+
+	vault, err := diogenes.CreateVaultClient(ctx, true)
 	if err != nil {
 		return nil, err
 	}
 
 	tls := config.BoolFromEnv(config.EnvTlSKey)
-
-	kube, err := kubernetes.CreateKubeClient(false)
-	if err != nil {
-		return nil, err
-	}
 
 	var cert string
 
@@ -83,6 +82,10 @@ func CreateNewConfig(ctx context.Context) (*Config, error) {
 	elasticLimen := limenelastic.NewClient(elastic)
 	vaultLimen := limenvault.NewClient(vault)
 	cleanupLimen := limencleanup.NewClient(elasticLimen, vaultLimen)
+	kubernetesLimen, err := limenkubernetes.NewClient(namespaces, cleanupLimen)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Config{
 		ElasticCert:      []byte(cert),
@@ -93,7 +96,19 @@ func CreateNewConfig(ctx context.Context) (*Config, error) {
 		Cancel:           cancel,
 		ElasticLimen:     elasticLimen,
 		VaultLimen:       vaultLimen,
-		KubernetesLimen:  limenkubernetes.NewClient(kube, namespaces, cleanupLimen),
+		KubernetesLimen:  kubernetesLimen,
 		CleanupLimen:     cleanupLimen,
 	}, nil
+}
+
+func validateVaultAuthConfig() error {
+	if strings.TrimSpace(os.Getenv(diogenes.EnvAuthMethod)) != diogenes.AuthMethodKube {
+		return nil
+	}
+
+	if strings.TrimSpace(os.Getenv(diogenes.EnvVaultKubernetesTokenPath)) == "" {
+		return fmt.Errorf("%s must point to Solon's projected Vault token when %s=%s", diogenes.EnvVaultKubernetesTokenPath, diogenes.EnvAuthMethod, diogenes.AuthMethodKube)
+	}
+
+	return nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/odysseia-greek/agora/plato/logging"
 	"github.com/odysseia-greek/delphi/aristides/diplomat"
@@ -36,7 +37,7 @@ func main() {
 	logging.System("starting up.....")
 	logging.System("starting up and getting env variables")
 
-	ambassador, err := diplomat.CreateNewConfig()
+	ambassador, err := diplomat.CreateNewConfig(context.Background())
 	if err != nil {
 		log.Fatalf("error creating TraceServiceClient: %v", err)
 	}

@@ -1,19 +1,20 @@
 package vault
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/odysseia-greek/agora/plato/logging"
 )
 
-func (c *Client) DeleteOrphan(podName string) error {
+func (c *Client) DeleteOrphan(ctx context.Context, podName string) error {
 	numberOfCleanedResource := 0
-	err := c.vault.DeleteSecret(podName)
+	err := c.vault.DeleteSecret(ctx, podName)
 	if err != nil {
 		logging.Error(fmt.Sprintf("failed to delete orphaned secret: %s, %s", podName, err.Error()))
 	}
 
-	err = c.vault.RemoveSecret(podName)
+	err = c.vault.RemoveSecret(ctx, podName)
 	if err != nil {
 		logging.Error(fmt.Sprintf("failed to remove orphaned secret: %s, %s", podName, err.Error()))
 	} else {
@@ -23,7 +24,7 @@ func (c *Client) DeleteOrphan(podName string) error {
 
 	policy := fmt.Sprintf("policy-%s", podName)
 
-	deletedPolicy, err := c.vault.DeletePolicy(policy)
+	deletedPolicy, err := c.vault.DeletePolicy(ctx, policy)
 	if err != nil || deletedPolicy != nil {
 		if err == nil {
 			err = fmt.Errorf("unexpected delete policy response")

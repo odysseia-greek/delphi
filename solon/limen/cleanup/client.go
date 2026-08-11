@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -11,7 +12,7 @@ type ElasticCleaner interface {
 }
 
 type VaultCleaner interface {
-	DeleteOrphan(podName string) error
+	DeleteOrphan(ctx context.Context, podName string) error
 }
 
 type Client struct {
@@ -26,7 +27,7 @@ func NewClient(elastic ElasticCleaner, vault VaultCleaner) *Client {
 	}
 }
 
-func (c *Client) DeleteOrphan(username, podName string) error {
+func (c *Client) DeleteOrphan(ctx context.Context, username, podName string) error {
 	if c.elastic == nil {
 		return fmt.Errorf("cleanup client is not initialized with an elastic cleaner")
 	}
@@ -48,7 +49,7 @@ func (c *Client) DeleteOrphan(username, podName string) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := c.vault.DeleteOrphan(podName); err != nil {
+		if err := c.vault.DeleteOrphan(ctx, podName); err != nil {
 			errCh <- err
 		}
 	}()

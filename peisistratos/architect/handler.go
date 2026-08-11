@@ -14,7 +14,6 @@ import (
 	"github.com/odysseia-greek/agora/diogenes"
 	plato "github.com/odysseia-greek/agora/plato/config"
 	"github.com/odysseia-greek/agora/plato/logging"
-	"github.com/odysseia-greek/agora/thales"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -26,12 +25,15 @@ type PeisistratosHandler struct {
 	Threshold    int
 	Env          string
 	Vault        diogenes.Client
-	Kube         *thales.KubeClient
+	Kube         *KubeClient
 	UnsealMethod string
 }
 
 const (
 	defaultAdminPolicyName     = "solon"
+	defaultVaultAudience       = "vault"
+	peisistratosPolicyName     = "peisistratos"
+	peisistratosVaultAudience  = "peisistratos"
 	gcp                        = "gcp"
 	defaultConfigMapAnnotation = "unsealprovider.peisistratos"
 )
@@ -52,10 +54,10 @@ type GCPConfig struct {
 type AzureConfig struct {
 }
 
-func (p *PeisistratosHandler) InitVault() error {
+func (p *PeisistratosHandler) InitVault(ctx context.Context) error {
 	logging.Debug("init for vault in container start")
 
-	status, err := p.Vault.Status()
+	status, err := p.Vault.Status(ctx)
 	if err != nil {
 		return err
 	}
@@ -66,11 +68,24 @@ func (p *PeisistratosHandler) InitVault() error {
 	}
 	logging.Debug(fmt.Sprintf("vault status: %s", jsonStatus))
 
-	if status.Initialized {
-		logging.Debug("vault is already initialized")
-		return nil
+	if !status.Initialized {
+		if err := p.bootstrapVault(ctx); err != nil {
+			return err
+		}
+	} else {
+		logging.Debug("vault is already initialized; authenticating for reconciliation")
+		if status.Sealed {
+			return fmt.Errorf("vault is initialized but sealed; configuration cannot be reconciled")
+		}
+		if err := p.loginForReconciliation(ctx); err != nil {
+			return err
+		}
 	}
 
+	return p.reconcileVault(ctx)
+}
+
+func (p *PeisistratosHandler) bootstrapVault(ctx context.Context) error {
 	logging.Debug("vault is not initialized so first step is initializing it")
 
 	nodes, err := p.getVaultPodNodes()
@@ -91,13 +106,13 @@ func (p *PeisistratosHandler) InitVault() error {
 
 	if p.UnsealMethod != "" {
 		logging.Info("initializing vault with auto unseal")
-		init, err = p.Vault.InitializeAutoUnseal(1, 1)
+		init, err = p.Vault.InitializeAutoUnseal(ctx, 1, 1)
 		if err != nil {
 			return err
 		}
 	} else {
 		logging.Info("initializing vault without auto unseal")
-		init, err = p.Vault.Initialize(p.Shares, p.Threshold)
+		init, err = p.Vault.Initialize(ctx, p.Shares, p.Threshold)
 		if err != nil {
 			return err
 		}
@@ -108,25 +123,38 @@ func (p *PeisistratosHandler) InitVault() error {
 	logging.Debug(fmt.Sprintf("vault is initialized root token: %s", init.RootToken))
 
 	if len(nodes) > 1 {
-		err := p.haFlow(nodes, init)
+		err := p.haFlow(ctx, nodes, init)
 		if err != nil {
 			return err
 		}
 
 	} else {
-		err := p.unsealVault(init)
+		err := p.unsealVault(ctx, init)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = p.Vault.LoginWithRootToken(init.RootToken)
-
-	err = p.Vault.EnableKVSecretsEngine("", "configs")
-	if err != nil {
+	if err := p.Vault.LoginWithRootToken(init.RootToken); err != nil {
 		return err
 	}
 
+	if err := p.Vault.EnableKVSecretsEngine(ctx, "", "configs"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PeisistratosHandler) reconcileVault(ctx context.Context) error {
+	if err := p.writeEmbeddedPolicies(ctx); err != nil {
+		return err
+	}
+
+	return p.configureKubernetesAuth(ctx)
+}
+
+func (p *PeisistratosHandler) writeEmbeddedPolicies(ctx context.Context) error {
 	files, err := embedPolicies.ReadDir("hcl/policies")
 	if err != nil {
 		return err
@@ -144,19 +172,62 @@ func (p *PeisistratosHandler) InitVault() error {
 			continue
 		}
 
-		if strings.Contains(file.Name(), defaultAdminPolicyName) {
-			err = p.Vault.WritePolicy(defaultAdminPolicyName, content)
-			if err != nil {
-				return err
-			}
+		policyName := policyNameFromFilename(file.Name())
+		if err := p.Vault.WritePolicy(ctx, policyName, content); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func policyNameFromFilename(filename string) string {
+	return strings.TrimSuffix(strings.TrimSuffix(filename, filepath.Ext(filename)), "-acl")
+}
+
+func (p *PeisistratosHandler) configureKubernetesAuth(ctx context.Context) error {
+	kubeHostAddress := "https://kubernetes.default.svc"
+	serviceAccountName := fmt.Sprintf("%s-access-sa", defaultAdminPolicyName)
+	vaultClient, ok := p.Vault.(*diogenes.Vault)
+	if !ok || vaultClient.Connection == nil {
+		return fmt.Errorf("Vault client does not expose a connection for auth reconciliation")
+	}
+
+	auths, err := vaultClient.Connection.Sys().ListAuthWithContext(ctx)
+	if err != nil {
+		return err
+	}
+	if _, exists := auths["kubernetes/"]; !exists {
+		if err := vaultClient.Connection.Sys().EnableAuthWithOptionsWithContext(ctx, "kubernetes", &api.EnableAuthOptions{
+			Type:        "kubernetes",
+			Description: "Kubernetes authentication",
+		}); err != nil {
+			return err
 		}
 	}
 
-	kubeHostAddress := "https://kubernetes.default.svc"
-	err = p.Vault.KubernetesAuthMethod(defaultAdminPolicyName, fmt.Sprintf("%s-access-sa", defaultAdminPolicyName), p.Namespace, kubeHostAddress)
-	if err != nil {
+	if _, err := vaultClient.Connection.Logical().WriteWithContext(ctx, "auth/kubernetes/config", map[string]interface{}{
+		"kubernetes_host":        kubeHostAddress,
+		"disable_iss_validation": true,
+	}); err != nil {
 		return err
+	}
 
+	roles := []struct {
+		name     string
+		audience string
+	}{
+		{name: defaultAdminPolicyName, audience: defaultVaultAudience},
+		{name: peisistratosPolicyName, audience: peisistratosVaultAudience},
+	}
+	for _, role := range roles {
+		if _, err := vaultClient.Connection.Logical().WriteWithContext(ctx, "auth/kubernetes/role/"+role.name, map[string]interface{}{
+			"bound_service_account_names":      []string{serviceAccountName},
+			"bound_service_account_namespaces": []string{p.Namespace},
+			"policies":                         []string{role.name},
+			"audience":                         role.audience,
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -182,7 +253,7 @@ func (p *PeisistratosHandler) determineUnsealMethod() error {
 	return nil
 }
 
-func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) error {
+func (p *PeisistratosHandler) haFlow(ctx context.Context, nodes []string, init *api.InitResponse) error {
 	rootPath := plato.StringFromEnv(plato.EnvRootTlSDir, plato.DefaultTLSFileLocation)
 	secretPath := filepath.Join(rootPath, "vault")
 	if p.Env == "LOCAL" {
@@ -193,7 +264,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 	cert := fmt.Sprintf("%s/vault.crt", secretPath)
 	key := fmt.Sprintf("%s/vault.key", secretPath)
 
-	_, err := p.Vault.Unseal(init.Keys)
+	_, err := p.Vault.Unseal(ctx, init.Keys)
 	if err != nil {
 		return err
 	}
@@ -208,7 +279,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 	}
 
 	var PrimaryNode string
-	leader, _ := p.Vault.Leader()
+	leader, _ := p.Vault.Leader(ctx)
 	for _, node := range nodes {
 		if strings.Contains(leader.LeaderClusterAddress, node) {
 			PrimaryNode = node
@@ -235,7 +306,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 					return err
 				}
 
-				raft, err := tempClient.RaftJoin(primaryAddress, readOutCert, readOutKey, readOutCa)
+				raft, err := tempClient.RaftJoin(ctx, primaryAddress, readOutCert, readOutKey, readOutCa)
 				if err != nil {
 					return err
 				}
@@ -243,7 +314,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 				logging.Debug(fmt.Sprintf("raft joined: %v", raft.Joined))
 			}
 
-			err = p.unsealVault(init)
+			err = p.unsealVault(ctx, init)
 			if err != nil {
 				return err
 			}
@@ -263,7 +334,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 					return err
 				}
 
-				raft, err := tempClient.RaftJoin(primaryAddress, readOutCert, readOutKey, readOutCa)
+				raft, err := tempClient.RaftJoin(ctx, primaryAddress, readOutCert, readOutKey, readOutCa)
 				if err != nil {
 					return err
 				}
@@ -271,7 +342,7 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 				logging.Debug(fmt.Sprintf("raft joined: %v", raft.Joined))
 			}
 
-			err = p.unsealVault(init)
+			err = p.unsealVault(ctx, init)
 			if err != nil {
 				return err
 			}
@@ -281,19 +352,19 @@ func (p *PeisistratosHandler) haFlow(nodes []string, init *api.InitResponse) err
 	return nil
 }
 
-func (p *PeisistratosHandler) unsealVault(init *api.InitResponse) error {
+func (p *PeisistratosHandler) unsealVault(ctx context.Context, init *api.InitResponse) error {
 	var unseal bool
 	var err error
 	switch p.UnsealMethod {
 	case gcp:
 		config := createUnsealConfig(gcp).(GCPConfig)
-		unseal, err = p.Vault.AutoUnsealGCP(config.KeyRing, config.CryptoKey, config.Location, init.RecoveryKeys)
+		unseal, err = p.Vault.AutoUnsealGCP(ctx, config.KeyRing, config.CryptoKey, config.Location, init.RecoveryKeys)
 		if err != nil {
 			return err
 		}
 
 	default:
-		unseal, err = p.Vault.Unseal(init.Keys)
+		unseal, err = p.Vault.Unseal(ctx, init.Keys)
 		if err != nil {
 			return err
 		}
