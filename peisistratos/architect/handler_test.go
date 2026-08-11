@@ -81,3 +81,17 @@ func TestEmbeddedPoliciesContainSolonAndPeisistratos(t *testing.T) {
 		assert.NotEmpty(t, content)
 	}
 }
+
+func TestPolicyNameFromFilename(t *testing.T) {
+	tests := map[string]string{
+		"solon-acl.hcl":        "solon",
+		"peisistratos-acl.hcl": "peisistratos",
+		"custom.hcl":           "custom",
+	}
+
+	for filename, expected := range tests {
+		t.Run(filename, func(t *testing.T) {
+			assert.Equal(t, expected, policyNameFromFilename(filename))
+		})
+	}
+}

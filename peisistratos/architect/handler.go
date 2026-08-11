@@ -172,12 +172,16 @@ func (p *PeisistratosHandler) writeEmbeddedPolicies(ctx context.Context) error {
 			continue
 		}
 
-		policyName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+		policyName := policyNameFromFilename(file.Name())
 		if err := p.Vault.WritePolicy(ctx, policyName, content); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func policyNameFromFilename(filename string) string {
+	return strings.TrimSuffix(strings.TrimSuffix(filename, filepath.Ext(filename)), "-acl")
 }
 
 func (p *PeisistratosHandler) configureKubernetesAuth(ctx context.Context) error {
