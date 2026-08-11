@@ -12,7 +12,6 @@ The repository is a collection of independent Go modules. There is no root `go.m
 | `perikles` | Kubernetes controller | Watches workloads and configuration, maintains service mappings, TLS secrets, and Cilium network policies, and exposes a small dashboard. |
 | `aristides` | gRPC sidecar | Gives a workload a local interface for retrieving credentials through Solon. Its protobuf contract is in `aristides/proto`. |
 | `peisistratos` | Init container | Bootstraps Vault authentication, policies, and related configuration before Solon starts. |
-| `kleisthenes` | Init container | Creates the Vault and Kubernetes resources required by Perikles. |
 | `periandros` | Init container | Requests and prepares Elasticsearch credentials for a workload. |
 | `ktesias` | Integration test suite | Exercises the deployed Solon, Perikles, Vault, Elasticsearch, Kubernetes, and Cilium flow. |
 
@@ -49,7 +48,7 @@ go test ./...
 To test every module from the repository root:
 
 ```sh
-for module in aristides kleisthenes ktesias peisistratos periandros perikles solon; do
+for module in aristides ktesias peisistratos periandros perikles solon; do
   (cd "$module" && go test ./...)
 done
 ```
@@ -120,7 +119,7 @@ Component-specific settings visible in this repository include:
 - Solon: `PORT`, `CERT_ROOT`, `SOLON_MANAGED_NAMESPACES`
 - Perikles: `CRD_NAME`, `TLS_FILES`, `L7_MODE`, `CONFIGMAP_NAME`, `VAULT_NAMESPACE`, `ELASTIC_NAMESPACE`, `WATCHED_NAMESPACES`, `DASHBOARD_ADDR`
 - Aristides: `PORT`
-- Peisistratos and Kleisthenes: `ENV`
+- Peisistratos: `ENV`
 - Periandros: workload role, index/access, pod, namespace, and tracing settings supplied through the shared configuration package
 
 For deployment defaults and secret mounts, treat the Helm charts in `mykenai` as the source of truth.

@@ -31,6 +31,9 @@ type PeisistratosHandler struct {
 
 const (
 	defaultAdminPolicyName     = "solon"
+	defaultVaultAudience       = "vault"
+	peisistratosPolicyName     = "peisistratos"
+	peisistratosVaultAudience  = "peisistratos"
 	gcp                        = "gcp"
 	defaultConfigMapAnnotation = "unsealprovider.peisistratos"
 )
@@ -65,11 +68,24 @@ func (p *PeisistratosHandler) InitVault(ctx context.Context) error {
 	}
 	logging.Debug(fmt.Sprintf("vault status: %s", jsonStatus))
 
-	if status.Initialized {
-		logging.Debug("vault is already initialized")
-		return nil
+	if !status.Initialized {
+		if err := p.bootstrapVault(ctx); err != nil {
+			return err
+		}
+	} else {
+		logging.Debug("vault is already initialized; authenticating for reconciliation")
+		if status.Sealed {
+			return fmt.Errorf("vault is initialized but sealed; configuration cannot be reconciled")
+		}
+		if err := p.loginForReconciliation(ctx); err != nil {
+			return err
+		}
 	}
 
+	return p.reconcileVault(ctx)
+}
+
+func (p *PeisistratosHandler) bootstrapVault(ctx context.Context) error {
 	logging.Debug("vault is not initialized so first step is initializing it")
 
 	nodes, err := p.getVaultPodNodes()
@@ -119,13 +135,26 @@ func (p *PeisistratosHandler) InitVault(ctx context.Context) error {
 		}
 	}
 
-	err = p.Vault.LoginWithRootToken(init.RootToken)
-
-	err = p.Vault.EnableKVSecretsEngine(ctx, "", "configs")
-	if err != nil {
+	if err := p.Vault.LoginWithRootToken(init.RootToken); err != nil {
 		return err
 	}
 
+	if err := p.Vault.EnableKVSecretsEngine(ctx, "", "configs"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PeisistratosHandler) reconcileVault(ctx context.Context) error {
+	if err := p.writeEmbeddedPolicies(ctx); err != nil {
+		return err
+	}
+
+	return p.configureKubernetesAuth(ctx)
+}
+
+func (p *PeisistratosHandler) writeEmbeddedPolicies(ctx context.Context) error {
 	files, err := embedPolicies.ReadDir("hcl/policies")
 	if err != nil {
 		return err
@@ -143,19 +172,58 @@ func (p *PeisistratosHandler) InitVault(ctx context.Context) error {
 			continue
 		}
 
-		if strings.Contains(file.Name(), defaultAdminPolicyName) {
-			err = p.Vault.WritePolicy(ctx, defaultAdminPolicyName, content)
-			if err != nil {
-				return err
-			}
+		policyName := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+		if err := p.Vault.WritePolicy(ctx, policyName, content); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *PeisistratosHandler) configureKubernetesAuth(ctx context.Context) error {
+	kubeHostAddress := "https://kubernetes.default.svc"
+	serviceAccountName := fmt.Sprintf("%s-access-sa", defaultAdminPolicyName)
+	vaultClient, ok := p.Vault.(*diogenes.Vault)
+	if !ok || vaultClient.Connection == nil {
+		return fmt.Errorf("Vault client does not expose a connection for auth reconciliation")
+	}
+
+	auths, err := vaultClient.Connection.Sys().ListAuthWithContext(ctx)
+	if err != nil {
+		return err
+	}
+	if _, exists := auths["kubernetes/"]; !exists {
+		if err := vaultClient.Connection.Sys().EnableAuthWithOptionsWithContext(ctx, "kubernetes", &api.EnableAuthOptions{
+			Type:        "kubernetes",
+			Description: "Kubernetes authentication",
+		}); err != nil {
+			return err
 		}
 	}
 
-	kubeHostAddress := "https://kubernetes.default.svc"
-	err = p.Vault.KubernetesAuthMethod(ctx, defaultAdminPolicyName, fmt.Sprintf("%s-access-sa", defaultAdminPolicyName), p.Namespace, kubeHostAddress)
-	if err != nil {
+	if _, err := vaultClient.Connection.Logical().WriteWithContext(ctx, "auth/kubernetes/config", map[string]interface{}{
+		"kubernetes_host":        kubeHostAddress,
+		"disable_iss_validation": true,
+	}); err != nil {
 		return err
+	}
 
+	roles := []struct {
+		name     string
+		audience string
+	}{
+		{name: defaultAdminPolicyName, audience: defaultVaultAudience},
+		{name: peisistratosPolicyName, audience: peisistratosVaultAudience},
+	}
+	for _, role := range roles {
+		if _, err := vaultClient.Connection.Logical().WriteWithContext(ctx, "auth/kubernetes/role/"+role.name, map[string]interface{}{
+			"bound_service_account_names":      []string{serviceAccountName},
+			"bound_service_account_namespaces": []string{p.Namespace},
+			"policies":                         []string{role.name},
+			"audience":                         role.audience,
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil

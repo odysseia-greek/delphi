@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/hashicorp/vault/api v1.23.0
-	github.com/odysseia-greek/agora/diogenes v0.2.0
+	github.com/odysseia-greek/agora/diogenes v0.2.2
 	github.com/odysseia-greek/agora/plato v0.2.17
 	github.com/stretchr/testify v1.11.1
 	k8s.io/apimachinery v0.36.3

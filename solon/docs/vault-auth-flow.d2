@@ -1,0 +1,58 @@
+direction: right
+
+periandros: Periandros {
+  shape: person
+}
+
+peisistratos: Peisistratos {
+  shape: rectangle
+  style.fill: "#f5e6cc"
+}
+
+kubernetes: Kubernetes {
+  shape: rectangle
+  service_account: solon-access-sa
+  api_token: API token\naud = Kubernetes API
+  vault_token: projected token\naud = vault
+  peisistratos_token: projected token\naud = peisistratos
+}
+
+vault: Vault {
+  shape: cylinder
+  auth_role: kubernetes/role/solon\nbound SA = solon-access-sa\naudience = vault
+  bootstrap_role: kubernetes/role/peisistratos\nbound SA = solon-access-sa\naudience = peisistratos
+  solon_policy: solon policy
+  workload_policy: per-pod policy
+  secret: configs/data/<pod>
+}
+
+solon: Solon {
+  shape: rectangle
+  diogenes: Diogenes Vault client
+}
+
+aristides: Aristides {
+  shape: rectangle
+}
+
+service: API / Seeder {
+  shape: rectangle
+}
+
+periandros -> peisistratos: starts bootstrap
+peisistratos -> vault: unseals and configures\nKubernetes auth + audience
+kubernetes.peisistratos_token -> peisistratos: init-container-only JWT
+peisistratos -> vault.bootstrap_role: subsequent login + reconciliation
+kubernetes.vault_token -> solon.diogenes: projected JWT
+solon.diogenes -> vault.auth_role: login(role=solon, jwt)
+vault.auth_role -> solon.diogenes: Vault client token\nwith solon policy
+kubernetes.api_token -> solon: Kubernetes API access
+service -> aristides: GetSecret
+aristides -> solon: request one-use Vault token
+solon -> kubernetes: identify caller pod
+solon -> vault.workload_policy: create policy and one-use token
+vault.workload_policy -> solon: one-use Vault token
+solon -> aristides: one-use Vault token
+aristides -> vault.secret: read secret
+vault.secret -> aristides: secret
+aristides -> service: service configuration

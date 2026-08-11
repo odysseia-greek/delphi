@@ -86,8 +86,8 @@ github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee h1:W5t00kpgFd
 github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/odysseia-greek/agora/diogenes v0.2.0 h1:dYRZvXzFp03NiaD0+gu4FL704LORVJiPz0cn3kNZFgc=
-github.com/odysseia-greek/agora/diogenes v0.2.0/go.mod h1:88UMxqwmBNDMiLo4WdQEgyFDQjLN8HCBuU7zN3Xebgk=
+github.com/odysseia-greek/agora/diogenes v0.2.2 h1:i003ZvkDgRCBzd71EDiKUH4EJSSChszshCsAboRCTcU=
+github.com/odysseia-greek/agora/diogenes v0.2.2/go.mod h1:88UMxqwmBNDMiLo4WdQEgyFDQjLN8HCBuU7zN3Xebgk=
 github.com/odysseia-greek/agora/plato v0.2.17 h1:asFWSIb0PUykx2DIjqrwvjR+EbWUiL27/xLJdYGeQ4c=
 github.com/odysseia-greek/agora/plato v0.2.17/go.mod h1:5dAU1q0VLjanp6xtR9Y7pX9J4QLw9vit9s+8b+2uyF4=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

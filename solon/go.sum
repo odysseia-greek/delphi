@@ -95,6 +95,9 @@ github.com/odysseia-greek/agora/aristoteles v0.4.0 h1:6Q+uMwdMHbwErfSRFqT2G3tuK/
 github.com/odysseia-greek/agora/aristoteles v0.4.0/go.mod h1:4YGaRE02HECYGXTMBA/+efZhxHesm8WoQUh2ENH3hwo=
 github.com/odysseia-greek/agora/diogenes v0.2.0 h1:dYRZvXzFp03NiaD0+gu4FL704LORVJiPz0cn3kNZFgc=
 github.com/odysseia-greek/agora/diogenes v0.2.0/go.mod h1:88UMxqwmBNDMiLo4WdQEgyFDQjLN8HCBuU7zN3Xebgk=
+github.com/odysseia-greek/agora/diogenes v0.2.1/go.mod h1:88UMxqwmBNDMiLo4WdQEgyFDQjLN8HCBuU7zN3Xebgk=
+github.com/odysseia-greek/agora/diogenes v0.2.2 h1:i003ZvkDgRCBzd71EDiKUH4EJSSChszshCsAboRCTcU=
+github.com/odysseia-greek/agora/diogenes v0.2.2/go.mod h1:88UMxqwmBNDMiLo4WdQEgyFDQjLN8HCBuU7zN3Xebgk=
 github.com/odysseia-greek/agora/eupalinos v0.3.1 h1:fAnB9oeny6D02WJk1ktpLG6BxyOlidkbfU5Xd2tmK6Y=
 github.com/odysseia-greek/agora/eupalinos v0.3.1/go.mod h1:4ymuUtZRDXlZpbiNBWFfQ6j+b9AnD/Dud3SMg8DMZ0o=
 github.com/odysseia-greek/agora/plato v0.2.17 h1:asFWSIb0PUykx2DIjqrwvjR+EbWUiL27/xLJdYGeQ4c=

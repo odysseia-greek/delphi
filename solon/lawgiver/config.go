@@ -3,6 +3,7 @@ package lawgiver
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/odysseia-greek/agora/aristoteles"
@@ -32,6 +33,10 @@ type Config struct {
 }
 
 func CreateNewConfig(ctx context.Context) (*Config, error) {
+	if err := validateVaultAuthConfig(); err != nil {
+		return nil, err
+	}
+
 	vault, err := diogenes.CreateVaultClient(ctx, true)
 	if err != nil {
 		return nil, err
@@ -94,4 +99,16 @@ func CreateNewConfig(ctx context.Context) (*Config, error) {
 		KubernetesLimen:  kubernetesLimen,
 		CleanupLimen:     cleanupLimen,
 	}, nil
+}
+
+func validateVaultAuthConfig() error {
+	if strings.TrimSpace(os.Getenv(diogenes.EnvAuthMethod)) != diogenes.AuthMethodKube {
+		return nil
+	}
+
+	if strings.TrimSpace(os.Getenv(diogenes.EnvVaultKubernetesTokenPath)) == "" {
+		return fmt.Errorf("%s must point to Solon's projected Vault token when %s=%s", diogenes.EnvVaultKubernetesTokenPath, diogenes.EnvAuthMethod, diogenes.AuthMethodKube)
+	}
+
+	return nil
 }

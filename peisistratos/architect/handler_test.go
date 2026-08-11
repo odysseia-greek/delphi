@@ -5,7 +5,9 @@ import (
 	"github.com/hashicorp/vault/api"
 	"github.com/odysseia-greek/agora/diogenes"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -60,4 +62,22 @@ func TestHandler(t *testing.T) {
 		err = handler.unsealVault(context.Background(), init)
 		assert.Nil(t, err)
 	})
+}
+
+func TestReconciliationRequiresPeisistratosProjectedToken(t *testing.T) {
+	t.Setenv(envVaultKubernetesTokenPath, filepath.Join(t.TempDir(), "missing-token"))
+
+	handler := PeisistratosHandler{}
+	err := handler.loginForReconciliation(context.Background())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read Peisistratos projected Vault token")
+}
+
+func TestEmbeddedPoliciesContainSolonAndPeisistratos(t *testing.T) {
+	for _, name := range []string{"solon-acl.hcl", "peisistratos-acl.hcl"} {
+		content, err := embedPolicies.ReadFile("hcl/policies/" + name)
+		require.NoError(t, err)
+		assert.NotEmpty(t, content)
+	}
 }
